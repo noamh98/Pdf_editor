@@ -1,0 +1,33 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <OutputType>WinExe</OutputType>
+    <TargetFramework>net8.0</TargetFramework>
+    <RootNamespace>PdfEditor.App</RootNamespace>
+    <AssemblyName>PdfEditor</AssemblyName>
+    <BuiltInComInteropSupport>true</BuiltInComInteropSupport>
+    <ApplicationManifest>app.manifest</ApplicationManifest>
+    <AvaloniaUseCompiledBindingsByDefault>true</AvaloniaUseCompiledBindingsByDefault>
+    <ApplicationIcon>Assets/app.ico</ApplicationIcon>
+    <SatelliteResourceLanguages>en</SatelliteResourceLanguages>
+  </PropertyGroup>
+  <ItemGroup>
+    <PackageReference Include="Avalonia" />
+    <PackageReference Include="Avalonia.Desktop" />
+    <PackageReference Include="Avalonia.Themes.Fluent" />
+    <PackageReference Include="Avalonia.Diagnostics" Condition="'$(Configuration)' == 'Debug'" />
+  </ItemGroup>
+  <ItemGroup>
+    <ProjectReference Include="..\PdfEditor.Core\PdfEditor.Core.csproj" />
+    <ProjectReference Include="..\PdfEditor.Pdf\PdfEditor.Pdf.csproj" />
+    <ProjectReference Include="..\PdfEditor.Ocr\PdfEditor.Ocr.csproj" />
+    <ProjectReference Include="..\PdfEditor.Platform\PdfEditor.Platform.csproj" />
+  </ItemGroup>
+  <ItemGroup>
+    <AvaloniaResource Include="Assets\**" />
+  </ItemGroup>
+  <!-- Bundled offline assets: fonts + OCR language data. Copied next to the app. -->
+  <ItemGroup>
+    <None Include="..\..\assets\fonts\**\*" Link="fonts\%(RecursiveDir)%(Filename)%(Extension)" CopyToOutputDirectory="PreserveNewest" />
+    <None Include="..\..\assets\tessdata\**\*" Link="tessdata\%(RecursiveDir)%(Filename)%(Extension)" CopyToOutputDirectory="PreserveNewest" />
+  </ItemGroup>
+</Project>
