@@ -13,7 +13,7 @@ project, so work can resume without re-discovering anything.
 | `PdfEditor.Platform` | Implemented; printing and DPAPI are Windows-only and unexercised on Linux |
 | `PdfEditor.App` | Implemented — responsive right-to-left Avalonia shell |
 | `tools/PdfEditor.Shots` | Headless screenshot harness; regenerates `docs/images` |
-| Docs | All planned documents written except `PLAN_REVIEW.md` — see *Outstanding* |
+| Docs | All planned documents written, `PLAN_REVIEW.md` included |
 | CI | GitHub Actions: Windows and Linux build and test, packaging, offline check, secret scan, dependency scan |
 | Release | `build/package.sh` produces a 120 MB portable folder, a 53 MB zip and `SHA256SUMS.txt` |
 
@@ -79,17 +79,15 @@ a cache. `Platform` holds the Windows-only pieces: printing and DPAPI-protected 
 
 ## Outstanding
 
-1. **`docs/PLAN_REVIEW.md`** — the independent critical design review. Still the one planned
-   document that does not exist. It should attack the plan, not polish it.
-2. **`LICENSE`** — deliberately not created. The licence of this code is the owner's decision.
+1. **`LICENSE`** — deliberately not created. The licence of this code is the owner's decision.
    `docs/RELEASE.md` records the recommendation and what adding one entails. Until then the code is
    under exclusive copyright, which the README states.
-3. **A Windows smoke test** — nobody has double-clicked the executable. `docs/TESTING.md` has the
+2. **A Windows smoke test** — nobody has double-clicked the executable. `docs/TESTING.md` has the
    manual script to run first.
-4. **The Visual C++ redistributable question** — whether PDFium, Skia and Tesseract need it on a
+3. **The Visual C++ redistributable question** — whether PDFium, Skia and Tesseract need it on a
    bare Windows install is unverified and must be settled before any release.
-5. **A physical print test** — the forced-duplex sequence has never reached a printer.
-6. **No interface for the signature library or for reordering pages** — both are implemented and
+4. **A physical print test** — the forced-duplex sequence has never reached a printer.
+5. **No interface for the signature library or for reordering pages** — both are implemented and
    tested underneath, and neither is reachable from the window.
 
 ## How to build and test
