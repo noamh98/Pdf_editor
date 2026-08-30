@@ -8,6 +8,7 @@ using PdfEditor.Core.Localization;
 using PdfEditor.Core.Ocr;
 using PdfEditor.Core.Printing;
 using PdfEditor.Core.Settings;
+using PdfEditor.Core.Storage;
 using PdfEditor.Ocr;
 
 namespace PdfEditor.App.ViewModels;
@@ -40,6 +41,7 @@ public sealed class MainWindowViewModel : ViewModelBase
     private double _viewportWidth = 1280;
     private LayoutSize _layoutSize = LayoutSize.Wide;
     private bool _thumbnailsOpen = true;
+    private string? _autosaveSessionId;
 
     public MainWindowViewModel(AppServices services, IDialogService? dialogs = null)
     {
@@ -402,6 +404,8 @@ public sealed class MainWindowViewModel : ViewModelBase
             Document.ApplyZoomMode(ZoomMode.FitWidth);
             Document.StartThumbnails();
 
+            _autosaveSessionId = _services.Autosave.BeginSession(path, SourceFingerprint.For(path));
+
             if (document.IsProtected) ReportStatus(Strings.ProtectedDocument, isError: false);
             else ClearStatus();
         }
@@ -422,6 +426,7 @@ public sealed class MainWindowViewModel : ViewModelBase
     private async Task CloseCurrentAsync()
     {
         if (_document is null) return;
+        await EndAutosaveSessionAsync().ConfigureAwait(true);
         var old = _document;
         _document = null;
         await old.DisposeAsync().ConfigureAwait(true);
@@ -489,7 +494,12 @@ public sealed class MainWindowViewModel : ViewModelBase
                 new SaveRequest(target, mode, [.. _document.Annotations]),
                 new Progress<double>(p => Progress = p), scope.Token).ConfigureAwait(true);
 
-            if (mode == SaveMode.Editable) _document.MarkSaved(target);
+            if (mode == SaveMode.Editable)
+            {
+                _document.MarkSaved(target);
+                await EndAutosaveSessionAsync().ConfigureAwait(true);
+                _autosaveSessionId = _services.Autosave.BeginSession(target, SourceFingerprint.For(target));
+            }
             RaisePropertyChanged(nameof(WindowTitle));
             ReportStatus(Strings.Saved, isError: false);
         }
@@ -854,6 +864,139 @@ public sealed class MainWindowViewModel : ViewModelBase
         ToggleThumbnailsCommand.RaiseCanExecuteChanged();
         ShowPageOperationsCommand.RaiseCanExecuteChanged();
         RaiseAll(nameof(WindowTitle));
+    }
+
+    // ---- autosave and crash recovery ----------------------------------------------------------
+
+    /// <summary>
+    /// How often the view should call <see cref="AutosaveNowAsync"/>, or null when the user has
+    /// turned autosave off. The timer belongs to the window: it has a lifetime, a view model does
+    /// not, and a timer rooted in one would outlive it.
+    /// </summary>
+    public TimeSpan? AutosaveInterval => _services.Settings.AutosaveEnabled
+        ? TimeSpan.FromSeconds(_services.Settings.AutosaveIntervalSeconds)
+        : null;
+
+    /// <summary>
+    /// Writes the current unsaved annotations to the recovery sidecar. Driven by a timer, and
+    /// public so a test can drive it without waiting for one.
+    /// </summary>
+    /// <remarks>
+    /// Autosave must never interrupt editing, so every failure is swallowed: a sidecar that could
+    /// not be written costs the user nothing right now, and reporting it would put an error in the
+    /// status bar for something they did not ask for.
+    /// </remarks>
+    public async Task AutosaveNowAsync()
+    {
+        if (_autosaveSessionId is not { } sessionId) return;
+        if (_document is not { IsDirty: true } document) return;
+
+        // The annotations have to be copied here, on the UI thread, because the collection they
+        // live in belongs to it. The write itself must not be: it ends in a synchronous fsync, and
+        // an uncontended semaphore completes inline, so awaiting it directly would put that fsync
+        // on the UI thread and stall the interface for as long as the disk takes.
+        var snapshot = document.Annotations.ToArray();
+        try
+        {
+            await Task.Run(() => _services.Autosave.SaveAsync(sessionId, snapshot)).ConfigureAwait(true);
+        }
+        catch (Exception e) when (e is IOException or UnauthorizedAccessException)
+        {
+        }
+    }
+
+    /// <summary>
+    /// Offers back work left behind by a run that did not shut down cleanly. Called once, after the
+    /// window is up, so the dialog has a parent to sit on.
+    /// </summary>
+    public async Task OfferRecoveryAsync()
+    {
+        IReadOnlyList<RecoverySession> sessions;
+        try
+        {
+            sessions = await _services.Autosave.FindRecoverableSessionsAsync().ConfigureAwait(true);
+        }
+        catch (Exception e) when (e is IOException or UnauthorizedAccessException)
+        {
+            return;
+        }
+        if (sessions.Count == 0) return;
+
+        var session = sessions[0];
+        var body = session.IsStale(SourceFingerprint.For(session.SourcePath))
+            ? Strings.RecoveryBody + " " + Strings.RecoveryStale
+            : Strings.RecoveryBody;
+
+        var answer = await Dialogs.ShowMessageAsync(new MessageRequest(
+            Strings.RecoveryTitle, body, MessageKind.Question,
+            PrimaryLabel: Strings.RecoverAction, SecondaryLabel: Strings.DiscardRecovery,
+            CancelLabel: Strings.Cancel)).ConfigureAwait(true);
+
+        switch (answer)
+        {
+            case MessageAnswer.Primary:
+                await RecoverAsync(session).ConfigureAwait(true);
+                break;
+            case MessageAnswer.Secondary:
+                await DiscardQuietlyAsync(session.SessionId).ConfigureAwait(true);
+                break;
+        }
+    }
+
+    /// <summary>
+    /// Reopens the document the session was taken against and re-applies the annotations on top of
+    /// it. They arrive through the normal edit path, so they are undoable and the document is dirty
+    /// — the recovery is an offer, not a fait accompli.
+    /// </summary>
+    private async Task RecoverAsync(RecoverySession session)
+    {
+        if (!File.Exists(session.SourcePath))
+        {
+            ReportStatus(Strings.ErrorFileNotFound, isError: true);
+            await DiscardQuietlyAsync(session.SessionId).ConfigureAwait(true);
+            return;
+        }
+
+        await OpenAsync(session.SourcePath).ConfigureAwait(true);
+        if (_document is null) return;
+
+        var restored = await _services.Autosave.RestoreAsync(session.SessionId).ConfigureAwait(true);
+        foreach (var annotation in restored) _document.AddAnnotation(annotation);
+
+        await DiscardQuietlyAsync(session.SessionId).ConfigureAwait(true);
+        ReportStatus(restored.Count > 0 ? Strings.Recovered : Strings.RecoveryEmpty, isError: false);
+    }
+
+    private async Task EndAutosaveSessionAsync()
+    {
+        if (_autosaveSessionId is not { } sessionId) return;
+        _autosaveSessionId = null;
+        await DiscardQuietlyAsync(sessionId).ConfigureAwait(true);
+    }
+
+    private async Task DiscardQuietlyAsync(string sessionId)
+    {
+        try
+        {
+            await _services.Autosave.DiscardAsync(sessionId).ConfigureAwait(true);
+        }
+        catch (Exception e) when (e is IOException or UnauthorizedAccessException)
+        {
+        }
+    }
+
+    /// <summary>
+    /// Asks about unsaved work on behalf of the window's own close button, which is not routed
+    /// through any command. Returns true when closing may proceed.
+    /// </summary>
+    public async Task<bool> ConfirmCloseAsync()
+    {
+        if (!await ConfirmDiscardChangesAsync().ConfigureAwait(true)) return false;
+
+        // A deliberate exit — saved or explicitly discarded — must leave nothing behind, or the
+        // next start would offer to recover work the user has already decided about.
+        await EndAutosaveSessionAsync().ConfigureAwait(true);
+        return true;
     }
 
     private async Task<bool> ConfirmDiscardChangesAsync()

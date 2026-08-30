@@ -103,6 +103,8 @@ public static class Strings
         "בהפעלה הקודמת נותרו שינויים שלא נשמרו. אפשר לשחזר אותם עכשיו או למחוק אותם.";
     public const string RecoverAction = "שחזור";
     public const string DiscardRecovery = "מחיקת השחזור";
+    public const string Recovered = "העבודה שלא נשמרה שוחזרה. יש לשמור את הקובץ כדי לשמר אותה.";
+    public const string RecoveryEmpty = "לא נמצאו הערות לשחזור.";
     public const string RecoveryStale =
         "קובץ המקור השתנה מאז השחזור האחרון, לכן ייתכן שההערות לא יתאימו למיקומן המקורי.";
 
