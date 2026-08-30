@@ -299,8 +299,93 @@ public class AnnotationRoundTripTests
         Assert.Single(after, a => !a.IsForeign);
     }
 
+    // Flattening burns marks into the page. An annotation from another application that carries no
+    // appearance stream cannot be burned in — there is nothing to draw — so removing it destroys
+    // another reviewer's mark with nothing put in its place.
+    [Fact]
+    public async Task FlatteningKeepsAForeignAnnotationItCannotDraw()
+    {
+        using var work = new TempWorkspace();
+        var source = work.Write("foreign.pdf", DocumentWithForeignAnnotation());
+        var flat = work.File("flat.pdf");
+
+        await using (var doc = await Loader.OpenAsync(source, Ct))
+            await Writer.SaveAsync(doc,
+                new SaveRequest(flat, SaveMode.Flattened, [DocumentLifecycleTests.SampleTextBox(0)]), null, Ct);
+
+        await using var reopened = await Loader.OpenAsync(flat, Ct);
+        var kept = Assert.Single(reopened.LoadAnnotations());
+        Assert.True(kept.IsForeign);
+        Assert.Equal("other-app-1", kept.Id);
+    }
+
+    [Fact]
+    public async Task FlatteningKeepsAForeignLinkAnnotation()
+    {
+        using var work = new TempWorkspace();
+        var source = work.Write("link.pdf", DocumentWithForeignLink());
+        var flat = work.File("flat.pdf");
+
+        await using (var doc = await Loader.OpenAsync(source, Ct))
+            await Writer.SaveAsync(doc,
+                new SaveRequest(flat, SaveMode.Flattened, [DocumentLifecycleTests.SampleTextBox(0)]), null, Ct);
+
+        using var check = PdfReader.Open(flat, PdfDocumentOpenMode.Import);
+        var annots = check.Pages[0].Elements.GetArray("/Annots");
+        Assert.NotNull(annots);
+        Assert.Contains(Enumerable.Range(0, annots!.Elements.Count),
+            i => annots.Elements.GetDictionary(i)?.Elements.GetName("/Subtype") == "/Link");
+    }
+
+    // The other half of the contract: an appearance that *was* drawn into the content must not
+    // also survive as an annotation, or the mark is rendered twice and is still un-flattened.
+    [Fact]
+    public async Task FlatteningRemovesAForeignAnnotationOnceItsAppearanceIsDrawn()
+    {
+        using var work = new TempWorkspace();
+        var source = work.Write("withap.pdf", DocumentWithForeignAnnotation(withAppearance: true));
+        var flat = work.File("flat.pdf");
+
+        await using (var doc = await Loader.OpenAsync(source, Ct))
+            await Writer.SaveAsync(doc, new SaveRequest(flat, SaveMode.Flattened, []), null, Ct);
+
+        using var check = PdfReader.Open(flat, PdfDocumentOpenMode.Import);
+        Assert.False(check.Pages[0].Elements.ContainsKey("/Annots"));
+
+        await using var reopened = await Loader.OpenAsync(flat, Ct);
+        var rendered = await reopened.RenderAsync(new RenderRequest(0, 1.5, IncludeAnnotations: false), Ct);
+        int inked = 0;
+        for (int i = 0; i < rendered.BgraPixels.Length; i += 4)
+            if (rendered.BgraPixels[i] < 240) inked++;
+        Assert.True(inked > 2000, $"the foreign appearance was not burned in; only {inked} inked pixels");
+    }
+
+    /// <summary>A /Link with a destination and, as is usual, no appearance stream.</summary>
+    private static byte[] DocumentWithForeignLink()
+    {
+        using var input = new MemoryStream(PdfFixtures.TextDocument(1), writable: false);
+        using var doc = PdfReader.Open(input, PdfDocumentOpenMode.Modify);
+        var page = doc.Pages[0];
+
+        var annot = new PdfDictionary(doc);
+        annot.Elements["/Type"] = new PdfName("/Annot");
+        annot.Elements["/Subtype"] = new PdfName("/Link");
+        annot.Elements["/Rect"] = new PdfArray(doc,
+            new PdfReal(60), new PdfReal(60), new PdfReal(200), new PdfReal(80));
+        annot.Elements["/Border"] = new PdfArray(doc, new PdfInteger(0), new PdfInteger(0), new PdfInteger(0));
+        doc.Internals.AddObject(annot);
+
+        var annots = new PdfArray(doc);
+        annots.Elements.Add(annot.Reference!);
+        page.Elements["/Annots"] = annots;
+
+        using var buffer = new MemoryStream();
+        doc.Save(buffer, closeStream: false);
+        return buffer.ToArray();
+    }
+
     /// <summary>A /Square annotation written without this application's private payload.</summary>
-    private static byte[] DocumentWithForeignAnnotation()
+    private static byte[] DocumentWithForeignAnnotation(bool withAppearance = false)
     {
         using var input = new MemoryStream(PdfFixtures.TextDocument(1), writable: false);
         using var doc = PdfReader.Open(input, PdfDocumentOpenMode.Modify);
@@ -314,6 +399,7 @@ public class AnnotationRoundTripTests
         annot.Elements["/C"] = new PdfArray(doc, new PdfReal(0), new PdfReal(0), new PdfReal(1));
         annot.Elements["/F"] = new PdfInteger(4);
         annot.Elements["/NM"] = new PdfString("other-app-1");
+        if (withAppearance) annot.Elements["/AP"] = ForeignAppearance(doc, 200, 80);
         doc.Internals.AddObject(annot);
 
         var annots = new PdfArray(doc);
@@ -323,5 +409,24 @@ public class AnnotationRoundTripTests
         using var buffer = new MemoryStream();
         doc.Save(buffer, closeStream: false);
         return buffer.ToArray();
+    }
+
+    /// <summary>A minimal /Subtype /Form appearance filling its bounding box with black.</summary>
+    private static PdfDictionary ForeignAppearance(PdfDocument doc, double width, double height)
+    {
+        var form = new PdfDictionary(doc);
+        form.CreateStream(System.Text.Encoding.ASCII.GetBytes(
+            string.Create(System.Globalization.CultureInfo.InvariantCulture,
+                $"0 0 0 rg 0 0 {width} {height} re f\n")));
+        form.Elements["/Type"] = new PdfName("/XObject");
+        form.Elements["/Subtype"] = new PdfName("/Form");
+        form.Elements["/FormType"] = new PdfInteger(1);
+        form.Elements["/BBox"] = new PdfArray(doc,
+            new PdfReal(0), new PdfReal(0), new PdfReal(width), new PdfReal(height));
+        doc.Internals.AddObject(form);
+
+        var ap = new PdfDictionary(doc);
+        ap.Elements["/N"] = form.Reference!;
+        return ap;
     }
 }

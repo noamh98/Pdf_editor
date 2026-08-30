@@ -15,15 +15,20 @@ namespace PdfEditor.Pdf.Annotations;
 /// </remarks>
 internal static class ForeignFlattener
 {
-    public static int DrawExistingAppearances(PdfPage page)
+    /// <summary>
+    /// Draws what it can and returns the positions in <c>/Annots</c> it drew, so the caller can
+    /// remove exactly those and leave the rest of the array alone.
+    /// </summary>
+    public static IReadOnlySet<int> DrawExistingAppearances(PdfPage page)
     {
         var annots = page.Elements.GetArray("/Annots");
-        if (annots is null) return 0;
+        if (annots is null) return new HashSet<int>();
 
         var resources = GetOrCreate(page.Elements, "/Resources", page.Owner);
         var xobjects = GetOrCreate(resources.Elements, "/XObject", page.Owner);
 
         var content = new StringBuilder();
+        var drawnIndices = new HashSet<int>();
         int drawn = 0;
 
         for (int i = 0; i < annots.Elements.Count; i++)
@@ -53,14 +58,15 @@ internal static class ForeignFlattener
 
             content.Append(CultureInfo.InvariantCulture,
                 $"q {sx:0.######} 0 0 {sy:0.######} {tx:0.######} {ty:0.######} cm {name} Do Q\n");
+            drawnIndices.Add(i);
             drawn++;
         }
 
-        if (drawn == 0) return 0;
+        if (drawn == 0) return drawnIndices;
 
         var appended = page.Contents.AppendContent();
         appended.CreateStream(Encoding.ASCII.GetBytes(content.ToString()));
-        return drawn;
+        return drawnIndices;
     }
 
     private static bool IsHidden(PdfDictionary annot)
