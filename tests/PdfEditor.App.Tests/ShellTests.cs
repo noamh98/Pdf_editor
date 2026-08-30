@@ -79,10 +79,11 @@ public class MainWindowTests
             Assert.NotNull(documentArea);
 
             // Column 0 is the leading column, which a right-to-left flow direction puts on the right,
-            // and the properties panel takes the trailing column on the left.
+            // and the properties panel takes the trailing column on the left. The odd columns in
+            // between hold the splitters.
             Assert.Equal(0, Grid.GetColumn(thumbnails!));
-            Assert.Equal(1, Grid.GetColumn(documentArea!));
-            Assert.Equal(2, Grid.GetColumn(properties!));
+            Assert.Equal(2, Grid.GetColumn(documentArea!));
+            Assert.Equal(4, Grid.GetColumn(properties!));
         }
     }
 
@@ -141,7 +142,7 @@ public class MainWindowTests
             viewModel.Toolbox.Select(EditorTool.Rectangle);
 
             Assert.Equal(EditorTool.Rectangle, viewModel.Toolbox.ActiveTool);
-            Assert.Single(viewModel.Toolbox.Tools.Where(t => t.IsSelected));
+            Assert.Single(viewModel.Toolbox.Tools, t => t.IsSelected);
             Assert.False(viewModel.Toolbox.IsSelectionTool);
         }
     }
@@ -247,17 +248,124 @@ public class MainWindowTests
     }
 
     [AvaloniaFact]
-    public void ShortcutsAreSuppressedWhileATextInputHasFocus()
+    public async Task ShortcutsAreSuppressedWhileATextInputHasFocus()
     {
-        var (window, _, fixture) = Create();
+        var (window, viewModel, fixture) = Create();
         using (fixture)
         {
+            // The search field only exists once a document is open, which is also the only time the
+            // suppression matters.
+            await viewModel.OpenAsync(WriteSmallFixture(fixture.Root));
+
             var search = window.GetVisualDescendants().OfType<TextBox>().First();
             search.Focus();
 
             Assert.True(window.IsTextInputFocused(),
                 "typing into a text field must not trigger editor shortcuts");
         }
+    }
+
+    // ---- responsive layout -----------------------------------------------------------------------
+
+    [AvaloniaFact]
+    public async Task ANarrowWindowClosesTheThumbnailRailAndFloatsTheSidePanels()
+    {
+        var (_, viewModel, fixture) = Create();
+        using (fixture)
+        {
+            await viewModel.OpenAsync(WriteSmallFixture(fixture.Root));
+
+            viewModel.ViewportWidth = 1400;
+            Assert.Equal(LayoutSize.Wide, viewModel.LayoutSize);
+            Assert.True(viewModel.IsThumbnailRailVisible);
+            Assert.False(viewModel.PanelsFloat);
+            Assert.True(viewModel.ShowCommandLabels);
+            Assert.True(viewModel.ShowSearchInCommandBar);
+            Assert.False(viewModel.ShowSearchRow);
+
+            viewModel.ViewportWidth = 1000;
+            Assert.Equal(LayoutSize.Medium, viewModel.LayoutSize);
+            Assert.True(viewModel.IsThumbnailRailVisible);
+            Assert.False(viewModel.ShowCommandLabels);
+            Assert.True(viewModel.ShowDocumentOpsInline);
+
+            viewModel.ViewportWidth = 760;
+            Assert.Equal(LayoutSize.Compact, viewModel.LayoutSize);
+            Assert.False(viewModel.IsThumbnailRailVisible);
+            Assert.False(viewModel.IsThumbnailOverlayVisible);
+            Assert.True(viewModel.PanelsFloat);
+            Assert.True(viewModel.ShowOverflowMenu);
+            Assert.True(viewModel.ShowSearchRow);
+            Assert.False(viewModel.ShowSearchInCommandBar);
+        }
+    }
+
+    [AvaloniaFact]
+    public async Task TheThumbnailRailCanStillBeOpenedByHandInACompactWindow()
+    {
+        var (_, viewModel, fixture) = Create();
+        using (fixture)
+        {
+            await viewModel.OpenAsync(WriteSmallFixture(fixture.Root));
+            viewModel.ViewportWidth = 700;
+
+            Assert.False(viewModel.IsThumbnailsOpen);
+
+            viewModel.ToggleThumbnailsCommand.Execute(null);
+
+            Assert.True(viewModel.IsThumbnailsOpen);
+            Assert.True(viewModel.IsThumbnailOverlayVisible);
+            Assert.False(viewModel.IsThumbnailRailVisible);
+            Assert.True(viewModel.HasFloatingPanel);
+        }
+    }
+
+    [AvaloniaFact]
+    public void TheCommandBarStaysEmptyHandedWithoutADocument()
+    {
+        var (_, viewModel, fixture) = Create();
+        using (fixture)
+        {
+            Assert.False(viewModel.ShowSearchInCommandBar);
+            Assert.False(viewModel.ShowSearchRow);
+            Assert.False(viewModel.IsThumbnailRailVisible);
+            Assert.False(viewModel.IsPropertiesDocked);
+        }
+    }
+
+    [AvaloniaFact]
+    public async Task PanelColumnsGiveTheirWidthBackWhenTheyAreHidden()
+    {
+        var (window, viewModel, fixture) = Create();
+        using (fixture)
+        {
+            var grid = window.FindControl<Grid>("MainGrid");
+            Assert.NotNull(grid);
+            Assert.Equal(0, grid!.ColumnDefinitions[0].Width.Value);
+
+            await viewModel.OpenAsync(WriteSmallFixture(fixture.Root));
+            viewModel.ViewportWidth = 1400;
+
+            Assert.Equal(ShellLayout.ThumbnailRailWidth(LayoutSize.Wide), grid.ColumnDefinitions[0].Width.Value);
+
+            viewModel.ToggleThumbnailsCommand.Execute(null);
+            Assert.Equal(0, grid.ColumnDefinitions[0].Width.Value);
+        }
+    }
+
+    private static string WriteSmallFixture(string directory)
+    {
+        Directory.CreateDirectory(directory);
+        var path = Path.Combine(directory, "shell-fixture.pdf");
+        PdfEditor.Pdf.Fonts.PdfFonts.EnsureRegistered();
+        using var document = new PdfSharp.Pdf.PdfDocument();
+        for (int i = 0; i < 2; i++)
+        {
+            var page = document.AddPage();
+            page.Size = PdfSharp.PageSize.A4;
+        }
+        document.Save(path);
+        return path;
     }
 
     [AvaloniaFact]

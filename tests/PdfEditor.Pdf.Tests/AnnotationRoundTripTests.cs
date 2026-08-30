@@ -17,31 +17,43 @@ public class AnnotationRoundTripTests
     [
         new TextBoxAnnotation
         {
-            PageIndex = 0, Rect = new PdfRect(50, 700, 300, 70),
-            Text = "הערה בעברית ABC 42\nשורה שנייה", FontSize = 13,
+            PageIndex = 0,
+            Rect = new PdfRect(50, 700, 300, 70),
+            Text = "הערה בעברית ABC 42\nשורה שנייה",
+            FontSize = 13,
             BackgroundColor = new AnnotationColor(255, 249, 196),
             BorderColor = new AnnotationColor(245, 176, 65)
         },
         new ShapeAnnotation(AnnotationKind.Rectangle)
         {
-            PageIndex = 0, Rect = new PdfRect(50, 600, 200, 70),
-            Color = AnnotationColor.Red, LineWidth = 3
+            PageIndex = 0,
+            Rect = new PdfRect(50, 600, 200, 70),
+            Color = AnnotationColor.Red,
+            LineWidth = 3
         },
         new ShapeAnnotation(AnnotationKind.Ellipse)
         {
-            PageIndex = 0, Rect = new PdfRect(300, 600, 150, 70),
-            Color = AnnotationColor.Blue, FillColor = new AnnotationColor(200, 220, 255), LineWidth = 2
+            PageIndex = 0,
+            Rect = new PdfRect(300, 600, 150, 70),
+            Color = AnnotationColor.Blue,
+            FillColor = new AnnotationColor(200, 220, 255),
+            LineWidth = 2
         },
         new ShapeAnnotation(AnnotationKind.Arrow)
         {
-            PageIndex = 0, Rect = new PdfRect(50, 500, 200, 60),
-            Start = new PdfPoint(50, 500), End = new PdfPoint(250, 560),
-            Color = AnnotationColor.Green, LineWidth = 2.5
+            PageIndex = 0,
+            Rect = new PdfRect(50, 500, 200, 60),
+            Start = new PdfPoint(50, 500),
+            End = new PdfPoint(250, 560),
+            Color = AnnotationColor.Green,
+            LineWidth = 2.5
         },
         new ShapeAnnotation(AnnotationKind.Highlight)
         {
-            PageIndex = 0, Rect = new PdfRect(50, 460, 220, 24),
-            Color = AnnotationColor.Yellow, Opacity = 0.4
+            PageIndex = 0,
+            Rect = new PdfRect(50, 460, 220, 24),
+            Color = AnnotationColor.Yellow,
+            Opacity = 0.4
         },
         new MarkAnnotation(AnnotationKind.CheckMark) { PageIndex = 0, Rect = new PdfRect(320, 500, 40, 40) },
         new MarkAnnotation(AnnotationKind.CrossMark) { PageIndex = 0, Rect = new PdfRect(380, 500, 40, 40) },

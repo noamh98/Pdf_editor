@@ -1,4 +1,5 @@
 using System.Collections.ObjectModel;
+using Avalonia;
 using PdfEditor.App.Services;
 using PdfEditor.Core.Annotations;
 using PdfEditor.Core.Documents;
@@ -35,6 +36,9 @@ public sealed class MainWindowViewModel : ViewModelBase
     private bool _statusIsError;
     private string? _searchText;
     private PrintPreviewViewModel? _printPreview;
+    private double _viewportWidth = 1280;
+    private LayoutSize _layoutSize = LayoutSize.Wide;
+    private bool _thumbnailsOpen = true;
 
     public MainWindowViewModel(AppServices services, IDialogService? dialogs = null)
     {
@@ -75,6 +79,10 @@ public sealed class MainWindowViewModel : ViewModelBase
 
         CancelCommand = new RelayCommand(CancelOperation, () => IsBusy);
         ToggleThemeCommand = new RelayCommand(CycleTheme);
+        ToggleThumbnailsCommand = new RelayCommand(() => IsThumbnailsOpen = !IsThumbnailsOpen,
+            () => Document is not null);
+        ClosePrintPreviewCommand = new RelayCommand(ClosePrintPreview);
+        ConfirmPrintCommand = Async(PrintAsync, () => PrintPreview?.SelectedPrinter is not null);
         ClearOcrCacheCommand = Async(ClearOcrCacheAsync);
     }
 
@@ -113,6 +121,9 @@ public sealed class MainWindowViewModel : ViewModelBase
     public RelayCommand PreviousPageCommand { get; }
     public RelayCommand CancelCommand { get; }
     public RelayCommand ToggleThemeCommand { get; }
+    public RelayCommand ToggleThumbnailsCommand { get; }
+    public RelayCommand ClosePrintPreviewCommand { get; }
+    public AsyncRelayCommand ConfirmPrintCommand { get; }
 
     // ---- state ----------------------------------------------------------------------------------
     public DocumentViewModel? Document
@@ -128,6 +139,7 @@ public sealed class MainWindowViewModel : ViewModelBase
 
             Properties = value is null ? null : new PropertiesViewModel(value);
             RaiseAll(nameof(HasDocument), nameof(IsEmpty), nameof(DocumentTitle), nameof(WindowTitle));
+            RaisePanelVisibility();
             RefreshCommands();
         }
     }
@@ -145,6 +157,7 @@ public sealed class MainWindowViewModel : ViewModelBase
         {
             if (!SetProperty(ref _printPreview, value)) return;
             RaisePropertyChanged(nameof(IsPrintPreviewOpen));
+            ConfirmPrintCommand.RaiseCanExecuteChanged();
         }
     }
 
@@ -161,6 +174,94 @@ public sealed class MainWindowViewModel : ViewModelBase
         : $"{_document.DisplayName}{(_document.IsDirty ? " •" : string.Empty)} — {Strings.AppName}";
 
     public string ActiveToolLabel => Toolbox.Tools.First(t => t.Tool == Toolbox.ActiveTool).Label;
+
+    // ---- responsive layout -----------------------------------------------------------------------
+    // The shell reports its own width and everything that has to give way at a narrow window is
+    // derived from it, so the rules live in one place and can be tested without a window.
+
+    /// <summary>The width of the shell, in device independent pixels.</summary>
+    public double ViewportWidth
+    {
+        get => _viewportWidth;
+        set
+        {
+            if (value <= 0 || Math.Abs(_viewportWidth - value) < 0.5) return;
+            _viewportWidth = value;
+            RaisePropertyChanged();
+            ApplyLayout(ShellLayout.Classify(value));
+        }
+    }
+
+    public LayoutSize LayoutSize => _layoutSize;
+
+    public bool IsCompactLayout => _layoutSize == LayoutSize.Compact;
+
+    public bool IsWideLayout => _layoutSize == LayoutSize.Wide;
+
+    /// <summary>In a compact window a side panel floats over the document instead of pushing it.</summary>
+    public bool PanelsFloat => ShellLayout.PanelsFloat(_layoutSize);
+
+    public double ThumbnailRailWidth => ShellLayout.ThumbnailRailWidth(_layoutSize);
+
+    public double ThumbnailTileWidth => ShellLayout.ThumbnailTileWidth(_layoutSize);
+
+    public double PropertiesPanelWidth => ShellLayout.PropertiesWidth(_layoutSize);
+
+    public Thickness CanvasPadding => new(ShellLayout.CanvasPadding(_layoutSize));
+
+    public bool ShowCommandLabels => ShellLayout.ShowsCommandLabels(_layoutSize);
+
+    public bool ShowSearchInCommandBar => HasDocument && ShellLayout.SearchFitsInCommandBar(_layoutSize);
+
+    /// <summary>The compact window gives the search field a row of its own under the command bar.</summary>
+    public bool ShowSearchRow => HasDocument && !ShellLayout.SearchFitsInCommandBar(_layoutSize);
+
+    public bool ShowDocumentOpsInline => ShellLayout.ShowsDocumentOpsInline(_layoutSize);
+
+    public bool ShowOverflowMenu => !ShowDocumentOpsInline;
+
+    /// <summary>Whether the user wants the thumbnail rail; it resets to the default on a resize.</summary>
+    public bool IsThumbnailsOpen
+    {
+        get => _thumbnailsOpen;
+        set
+        {
+            if (!SetProperty(ref _thumbnailsOpen, value)) return;
+            RaiseAll(nameof(IsThumbnailRailVisible), nameof(IsThumbnailOverlayVisible));
+        }
+    }
+
+    public bool IsThumbnailRailVisible => HasDocument && _thumbnailsOpen && !PanelsFloat;
+
+    public bool IsThumbnailOverlayVisible => HasDocument && _thumbnailsOpen && PanelsFloat;
+
+    public bool IsPropertiesDocked => Properties?.HasTarget == true && !PanelsFloat;
+
+    public bool IsPropertiesFloating => Properties?.HasTarget == true && PanelsFloat;
+
+    /// <summary>True when a floating panel is covering part of the document.</summary>
+    public bool HasFloatingPanel => IsThumbnailOverlayVisible || IsPropertiesFloating;
+
+    private void ApplyLayout(LayoutSize size)
+    {
+        var changed = _layoutSize != size;
+        _layoutSize = size;
+        if (changed) _thumbnailsOpen = ShellLayout.ThumbnailsOpenByDefault(size);
+
+        RaiseAll(
+            nameof(LayoutSize), nameof(IsCompactLayout), nameof(IsWideLayout), nameof(PanelsFloat),
+            nameof(ThumbnailRailWidth), nameof(ThumbnailTileWidth), nameof(PropertiesPanelWidth),
+            nameof(CanvasPadding), nameof(ShowCommandLabels), nameof(ShowSearchInCommandBar),
+            nameof(ShowSearchRow), nameof(ShowDocumentOpsInline), nameof(ShowOverflowMenu),
+            nameof(IsThumbnailsOpen), nameof(IsThumbnailRailVisible), nameof(IsThumbnailOverlayVisible),
+            nameof(IsPropertiesDocked), nameof(IsPropertiesFloating), nameof(HasFloatingPanel));
+    }
+
+    /// <summary>Raises the panel visibility flags that depend on something other than the width.</summary>
+    private void RaisePanelVisibility() => RaiseAll(
+        nameof(IsThumbnailRailVisible), nameof(IsThumbnailOverlayVisible),
+        nameof(IsPropertiesDocked), nameof(IsPropertiesFloating),
+        nameof(HasFloatingPanel), nameof(ShowSearchRow), nameof(ShowSearchInCommandBar));
 
     public bool IsBusy
     {
@@ -582,7 +683,11 @@ public sealed class MainWindowViewModel : ViewModelBase
         RefreshCommands();
     }
 
-    private void OnSelectionChanged(object? sender, Annotation? annotation) => RefreshCommands();
+    private void OnSelectionChanged(object? sender, Annotation? annotation)
+    {
+        RaisePanelVisibility();
+        RefreshCommands();
+    }
 
     // ---- theme -----------------------------------------------------------------------------------------------
     private void CycleTheme() => Theme = Theme switch
@@ -667,6 +772,7 @@ public sealed class MainWindowViewModel : ViewModelBase
         ActualSizeCommand.RaiseCanExecuteChanged();
         NextPageCommand.RaiseCanExecuteChanged();
         PreviousPageCommand.RaiseCanExecuteChanged();
+        ToggleThumbnailsCommand.RaiseCanExecuteChanged();
         RaiseAll(nameof(WindowTitle));
     }
 

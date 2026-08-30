@@ -43,7 +43,7 @@ public class OcrTextIndexTests
     [Fact]
     public void SearchIsInsensitiveToNikud()
     {
-        Assert.Single(BuildIndex().Search("שָׁלוֹם").Where(h => h.PageIndex == 0));
+        Assert.Single(BuildIndex().Search("שָׁלוֹם"), h => h.PageIndex == 0);
     }
 
     [Fact]

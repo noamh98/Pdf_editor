@@ -50,7 +50,7 @@ public sealed class PropertiesViewModel : ViewModelBase
     public bool IsTextBox => _target is TextBoxAnnotation;
 
     public bool SupportsFill => _target is ShapeAnnotation
-        { Kind: AnnotationKind.Rectangle or AnnotationKind.Ellipse };
+    { Kind: AnnotationKind.Rectangle or AnnotationKind.Ellipse };
 
     public bool SupportsLineWidth => _target is ShapeAnnotation or InkAnnotation or MarkAnnotation
         or TextBoxAnnotation;
@@ -98,6 +98,15 @@ public sealed class PropertiesViewModel : ViewModelBase
         set => Mutate(a => { if (a is TextBoxAnnotation t) t.Alignment = value; }, Strings.ToolTextBox);
     }
 
+    /// <summary>
+    /// Size as width × height, in PDF points.
+    /// </summary>
+    /// <remarks>
+    /// The value is a left to right run in the middle of a right to left panel: the "×" is a neutral
+    /// character, so inside a Hebrew paragraph the two numbers swap places on screen. Isolate
+    /// characters are not enough here, so the view pins this readout to a left to right flow
+    /// direction and the string itself stays plain.
+    /// </remarks>
     public string GeometryText => _target is null
         ? string.Empty
         : $"{Math.Round(_target.Rect.Width)} × {Math.Round(_target.Rect.Height)}";

@@ -8,7 +8,7 @@
         FlowDirection="RightToLeft"
         Title="{Binding WindowTitle}"
         Width="1280" Height="820"
-        MinWidth="900" MinHeight="600"
+        MinWidth="680" MinHeight="520"
         Icon="avares://PdfEditor/Assets/app.ico"
         Background="{DynamicResource CanvasBrush}">
 
@@ -31,28 +31,178 @@
     <KeyBinding Gesture="Ctrl+Subtract" Command="{Binding ZoomOutCommand}" />
     <KeyBinding Gesture="Ctrl+D0" Command="{Binding FitPageCommand}" />
     <KeyBinding Gesture="Ctrl+NumPad0" Command="{Binding FitPageCommand}" />
+    <KeyBinding Gesture="Ctrl+B" Command="{Binding ToggleThumbnailsCommand}" />
     <KeyBinding Gesture="PageDown" Command="{Binding NextPageCommand}" />
     <KeyBinding Gesture="PageUp" Command="{Binding PreviousPageCommand}" />
   </Window.KeyBindings>
 
-  <Grid RowDefinitions="Auto,Auto,*,Auto">
+  <Window.Resources>
+
+    <!-- The thumbnail rail and the properties panel are declared once and hosted twice: docked in
+         the main row on a wide window, floating over the document on a narrow one. -->
+    <DataTemplate x:Key="ThumbnailRail" x:DataType="vm:MainWindowViewModel">
+      <DockPanel>
+        <Grid DockPanel.Dock="Top" ColumnDefinitions="*,Auto" Margin="12,10,8,6">
+          <TextBlock Grid.Column="0" Classes="sectionHeader" Margin="0"
+                     VerticalAlignment="Center" Text="{x:Static loc:Strings.Thumbnails}" />
+          <Button Grid.Column="1" Classes="command" Padding="6"
+                  Command="{Binding ToggleThumbnailsCommand}"
+                  IsVisible="{Binding PanelsFloat}"
+                  ToolTip.Tip="{x:Static loc:Strings.Close}"
+                  AutomationProperties.Name="{x:Static loc:Strings.Close}">
+            <Path Data="{x:Static vm:Icons.Close}" Fill="{Binding $parent[Button].Foreground}" />
+          </Button>
+        </Grid>
+        <ListBox Name="ThumbnailList" Classes="thumbs"
+                 ItemsSource="{Binding Document.Pages}"
+                 SelectedIndex="{Binding Document.CurrentPageIndex, Mode=TwoWay}">
+          <ListBox.ItemTemplate>
+            <DataTemplate x:DataType="vm:PageViewModel">
+              <StackPanel Spacing="5" Margin="2,5">
+                <!-- Pinned left to right: the tile shows a document, and a right to left flow
+                     direction would mirror everything drawn inside it. -->
+                <Border Classes="thumb" Classes.current="{Binding IsSelected}"
+                        FlowDirection="LeftToRight" HorizontalAlignment="Center"
+                        Width="{Binding $parent[Window].((vm:MainWindowViewModel)DataContext).ThumbnailTileWidth}">
+                  <Image Source="{Binding Thumbnail}" Stretch="Uniform" Height="140" />
+                </Border>
+                <TextBlock Text="{Binding PageNumber}" HorizontalAlignment="Center" Classes="muted"
+                           FontWeight="{Binding IsSelected, Converter={StaticResource BoolToWeight}}" />
+              </StackPanel>
+            </DataTemplate>
+          </ListBox.ItemTemplate>
+        </ListBox>
+      </DockPanel>
+    </DataTemplate>
+
+    <DataTemplate x:Key="PropertiesPanel" x:DataType="vm:MainWindowViewModel">
+      <ScrollViewer Padding="14">
+        <StackPanel Spacing="14">
+
+          <Grid ColumnDefinitions="*,Auto">
+            <StackPanel Grid.Column="0" DataContext="{Binding Properties}" x:DataType="vm:PropertiesViewModel">
+              <TextBlock Classes="title" Text="{Binding TitleText}" />
+              <TextBlock Classes="muted" Text="{Binding PageText}" />
+            </StackPanel>
+            <Button Grid.Column="1" Classes="command" Padding="6" VerticalAlignment="Top"
+                    Command="{Binding ClearSelectionCommand}"
+                    ToolTip.Tip="{x:Static loc:Strings.Close}"
+                    AutomationProperties.Name="{x:Static loc:Strings.Close}">
+              <Path Data="{x:Static vm:Icons.Close}" Fill="{Binding $parent[Button].Foreground}" />
+            </Button>
+          </Grid>
+
+          <StackPanel Spacing="14" DataContext="{Binding Properties}" x:DataType="vm:PropertiesViewModel">
+
+            <Border Classes="group" IsVisible="{Binding IsForeign}">
+              <TextBlock Classes="muted"
+                         Text="הערה זו נוצרה בתוכנה אחרת ולכן אינה ניתנת לעריכה כאן. היא תישמר כפי שהיא." />
+            </Border>
+
+            <StackPanel Spacing="14" IsVisible="{Binding IsEditable}">
+
+              <Border Classes="group">
+                <StackPanel Spacing="4">
+                  <TextBlock Classes="sectionHeader" Text="צבע" />
+                  <ItemsControl ItemsSource="{x:Static vm:PropertiesViewModel.Swatches}">
+                    <ItemsControl.ItemsPanel>
+                      <ItemsPanelTemplate>
+                        <WrapPanel />
+                      </ItemsPanelTemplate>
+                    </ItemsControl.ItemsPanel>
+                    <ItemsControl.ItemTemplate>
+                      <DataTemplate x:DataType="vm:ColorSwatch">
+                        <Button Width="30" Height="30" Margin="0,0,7,7" Padding="0"
+                                Click="OnSwatchClicked" Tag="{Binding}"
+                                AutomationProperties.Name="{Binding Name}"
+                                ToolTip.Tip="{Binding Name}"
+                                Background="{Binding Color, Converter={StaticResource AnnotationColorToBrush}}"
+                                BorderBrush="{DynamicResource BorderStrongBrush}" BorderThickness="1"
+                                CornerRadius="15" />
+                      </DataTemplate>
+                    </ItemsControl.ItemTemplate>
+                  </ItemsControl>
+                </StackPanel>
+              </Border>
+
+              <Border Classes="group">
+                <StackPanel Spacing="2">
+                  <TextBlock Classes="sectionHeader" Text="עובי קו" IsVisible="{Binding SupportsLineWidth}" />
+                  <Slider Minimum="0.5" Maximum="16" TickFrequency="0.5" IsSnapToTickEnabled="True"
+                          IsVisible="{Binding SupportsLineWidth}"
+                          Value="{Binding LineWidth, Mode=TwoWay}"
+                          AutomationProperties.Name="עובי קו" />
+
+                  <TextBlock Classes="sectionHeader" Text="שקיפות" />
+                  <Slider Minimum="0.1" Maximum="1.0" TickFrequency="0.05" IsSnapToTickEnabled="True"
+                          Value="{Binding Opacity, Mode=TwoWay}"
+                          AutomationProperties.Name="שקיפות" />
+                </StackPanel>
+              </Border>
+
+              <Border Classes="group" IsVisible="{Binding IsTextBox}">
+                <StackPanel Spacing="6">
+                  <TextBlock Classes="sectionHeader" Margin="0" Text="{x:Static loc:Strings.ToolTextBox}" />
+                  <TextBox AcceptsReturn="True" MinHeight="88" TextWrapping="Wrap"
+                           Text="{Binding Text, Mode=TwoWay}"
+                           AutomationProperties.Name="{x:Static loc:Strings.ToolTextBox}" />
+                  <TextBlock Classes="sectionHeader" Margin="0,6,0,0" Text="גודל גופן" />
+                  <Slider Minimum="8" Maximum="48" TickFrequency="1" IsSnapToTickEnabled="True"
+                          Value="{Binding FontSize, Mode=TwoWay}"
+                          AutomationProperties.Name="גודל גופן" />
+                </StackPanel>
+              </Border>
+
+              <!-- Pinned left to right: "×" is a neutral character, so in a Hebrew paragraph the
+                   width and the height would swap places on screen. -->
+              <TextBlock Classes="muted ltr" HorizontalAlignment="Left" Text="{Binding GeometryText}" />
+            </StackPanel>
+          </StackPanel>
+
+          <StackPanel Orientation="Horizontal" Spacing="8" HorizontalAlignment="Stretch">
+            <Button Classes="secondary" Command="{Binding DuplicateSelectionCommand}"
+                    Content="{x:Static loc:Strings.Duplicate}" />
+            <Button Classes="secondary danger" Command="{Binding DeleteSelectionCommand}"
+                    Content="{x:Static loc:Strings.Delete}" />
+          </StackPanel>
+        </StackPanel>
+      </ScrollViewer>
+    </DataTemplate>
+  </Window.Resources>
+
+  <Grid RowDefinitions="Auto,Auto,Auto,*,Auto">
 
     <!-- Command bar -->
-    <Border Grid.Row="0" Classes="bar" BorderThickness="0,0,0,1" Padding="10,6">
+    <Border Grid.Row="0" Classes="bar" BorderThickness="0,0,0,1" Padding="10,7"
+            BoxShadow="{DynamicResource BarShadow}">
       <Grid ColumnDefinitions="Auto,*,Auto">
+
         <StackPanel Grid.Column="0" Orientation="Horizontal" Spacing="2">
-          <Button Classes="command" Command="{Binding OpenCommand}"
-                  ToolTip.Tip="{x:Static loc:Strings.Open}"
+          <Button Classes="command" Command="{Binding ToggleThumbnailsCommand}"
+                  IsVisible="{Binding HasDocument}"
+                  ToolTip.Tip="{x:Static loc:Strings.Thumbnails}"
+                  AutomationProperties.Name="{x:Static loc:Strings.Thumbnails}">
+            <Path Data="{x:Static vm:Icons.Sidebar}" Fill="{Binding $parent[Button].Foreground}" />
+          </Button>
+
+          <Border Classes="divider" IsVisible="{Binding HasDocument}" />
+
+          <Button Classes="command accent" Command="{Binding OpenCommand}"
+                  ToolTip.Tip="Ctrl+O"
                   AutomationProperties.Name="{x:Static loc:Strings.Open}">
-            <StackPanel Orientation="Horizontal" Spacing="6">
+            <StackPanel Orientation="Horizontal" Spacing="7">
               <Path Data="{x:Static vm:Icons.Open}" Fill="{Binding $parent[Button].Foreground}" />
-              <TextBlock Text="{x:Static loc:Strings.Open}" VerticalAlignment="Center" />
+              <TextBlock Text="{x:Static loc:Strings.Open}" VerticalAlignment="Center"
+                         IsVisible="{Binding $parent[Window].((vm:MainWindowViewModel)DataContext).ShowCommandLabels}" />
             </StackPanel>
           </Button>
 
-          <Rectangle Width="1" Margin="6,4" Fill="{DynamicResource BorderBrush}" />
+          <!-- Everything that needs a document leaves the bar entirely when there is none, so the
+               empty state is an invitation rather than a wall of dead buttons. -->
+          <StackPanel Orientation="Horizontal" Spacing="2" IsVisible="{Binding HasDocument}">
+            <Border Classes="divider" />
 
-          <Button Classes="command" Command="{Binding SaveCommand}"
+            <Button Classes="command" Command="{Binding SaveCommand}"
                   ToolTip.Tip="Ctrl+S" AutomationProperties.Name="{x:Static loc:Strings.Save}">
             <Path Data="{x:Static vm:Icons.Save}" Fill="{Binding $parent[Button].Foreground}" />
           </Button>
@@ -71,54 +221,80 @@
             <Path Data="{x:Static vm:Icons.Print}" Fill="{Binding $parent[Button].Foreground}" />
           </Button>
 
-          <Rectangle Width="1" Margin="6,4" Fill="{DynamicResource BorderBrush}" />
+          <Border Classes="divider" />
 
           <Button Classes="command" Command="{Binding UndoCommand}"
-                  ToolTip.Tip="{x:Static loc:Strings.Undo}"
-                  AutomationProperties.Name="{x:Static loc:Strings.Undo}">
+                  ToolTip.Tip="Ctrl+Z" AutomationProperties.Name="{x:Static loc:Strings.Undo}">
             <Path Data="{x:Static vm:Icons.Undo}" Fill="{Binding $parent[Button].Foreground}" />
           </Button>
           <Button Classes="command" Command="{Binding RedoCommand}"
-                  ToolTip.Tip="{x:Static loc:Strings.Redo}"
-                  AutomationProperties.Name="{x:Static loc:Strings.Redo}">
+                  ToolTip.Tip="Ctrl+Y" AutomationProperties.Name="{x:Static loc:Strings.Redo}">
             <Path Data="{x:Static vm:Icons.Redo}" Fill="{Binding $parent[Button].Foreground}" />
           </Button>
 
-          <Rectangle Width="1" Margin="6,4" Fill="{DynamicResource BorderBrush}" />
+          <Border Classes="divider" IsVisible="{Binding ShowDocumentOpsInline}" />
 
-          <Button Classes="command" Command="{Binding MergeCommand}"
-                  ToolTip.Tip="{x:Static loc:Strings.Merge}"
-                  AutomationProperties.Name="{x:Static loc:Strings.Merge}">
-            <Path Data="{x:Static vm:Icons.Merge}" Fill="{Binding $parent[Button].Foreground}" />
-          </Button>
-          <Button Classes="command" Command="{Binding SplitCommand}"
-                  ToolTip.Tip="{x:Static loc:Strings.Split}"
-                  AutomationProperties.Name="{x:Static loc:Strings.Split}">
-            <Path Data="{x:Static vm:Icons.Split}" Fill="{Binding $parent[Button].Foreground}" />
-          </Button>
-          <Button Classes="command" Command="{Binding RunOcrCommand}"
-                  ToolTip.Tip="{x:Static loc:Strings.OcrRunOnPage}"
-                  AutomationProperties.Name="{x:Static loc:Strings.Ocr}">
-            <Path Data="{x:Static vm:Icons.Ocr}" Fill="{Binding $parent[Button].Foreground}" />
-          </Button>
+          <!-- Document operations stay in the bar while there is room, and move into the overflow
+               menu when the window is too narrow to show them without clipping. -->
+          <StackPanel Orientation="Horizontal" Spacing="2" IsVisible="{Binding ShowDocumentOpsInline}">
+            <Button Classes="command" Command="{Binding MergeCommand}"
+                    ToolTip.Tip="{x:Static loc:Strings.Merge}"
+                    AutomationProperties.Name="{x:Static loc:Strings.Merge}">
+              <Path Data="{x:Static vm:Icons.Merge}" Fill="{Binding $parent[Button].Foreground}" />
+            </Button>
+            <Button Classes="command" Command="{Binding SplitCommand}"
+                    ToolTip.Tip="{x:Static loc:Strings.Split}"
+                    AutomationProperties.Name="{x:Static loc:Strings.Split}">
+              <Path Data="{x:Static vm:Icons.Split}" Fill="{Binding $parent[Button].Foreground}" />
+            </Button>
+            <Button Classes="command" Command="{Binding RunOcrCommand}"
+                    ToolTip.Tip="{x:Static loc:Strings.OcrRunOnPage}"
+                    AutomationProperties.Name="{x:Static loc:Strings.Ocr}">
+              <Path Data="{x:Static vm:Icons.Ocr}" Fill="{Binding $parent[Button].Foreground}" />
+            </Button>
+          </StackPanel>
+
+          <Button Classes="command" IsVisible="{Binding ShowOverflowMenu}"
+                  ToolTip.Tip="{x:Static loc:Strings.MoreActions}"
+                  AutomationProperties.Name="{x:Static loc:Strings.MoreActions}">
+            <Path Data="{x:Static vm:Icons.More}" Fill="{Binding $parent[Button].Foreground}" />
+            <Button.Flyout>
+              <MenuFlyout>
+                <MenuItem Header="{x:Static loc:Strings.Merge}" Command="{Binding MergeCommand}" />
+                <MenuItem Header="{x:Static loc:Strings.Split}" Command="{Binding SplitCommand}" />
+                <MenuItem Header="{x:Static loc:Strings.OcrRunOnPage}" Command="{Binding RunOcrCommand}" />
+                <Separator />
+                <MenuItem Header="{x:Static loc:Strings.ClearOcrCache}" Command="{Binding ClearOcrCacheCommand}" />
+              </MenuFlyout>
+            </Button.Flyout>
+            </Button>
+          </StackPanel>
         </StackPanel>
 
-        <TextBox Grid.Column="1" Name="SearchBox" MaxWidth="360" Margin="16,0"
-                 Watermark="{x:Static loc:Strings.Search}"
-                 Text="{Binding SearchText, Mode=TwoWay}"
-                 AutomationProperties.Name="{x:Static loc:Strings.Search}" />
+        <Border Grid.Column="1" Classes="searchField" MaxWidth="380" Margin="18,0"
+                IsVisible="{Binding ShowSearchInCommandBar}">
+          <Grid ColumnDefinitions="Auto,*">
+            <Path Grid.Column="0" Data="{x:Static vm:Icons.Search}" VerticalAlignment="Center"
+                  Fill="{DynamicResource TextMutedBrush}" />
+            <TextBox Grid.Column="1" Name="SearchBox" VerticalAlignment="Center"
+                     Watermark="{x:Static loc:Strings.Search}"
+                     Text="{Binding SearchText, Mode=TwoWay}"
+                     AutomationProperties.Name="{x:Static loc:Strings.Search}" />
+          </Grid>
+        </Border>
 
         <StackPanel Grid.Column="2" Orientation="Horizontal" Spacing="2">
+          <StackPanel Orientation="Horizontal" Spacing="2" IsVisible="{Binding HasDocument}">
           <Button Classes="command" Command="{Binding ZoomOutCommand}"
                   AutomationProperties.Name="{x:Static loc:Strings.ZoomOut}"
-                  ToolTip.Tip="{x:Static loc:Strings.ZoomOut}">
+                  ToolTip.Tip="Ctrl+-">
             <Path Data="{x:Static vm:Icons.ZoomOut}" Fill="{Binding $parent[Button].Foreground}" />
           </Button>
           <TextBlock Text="{Binding Document.ZoomPercentText}" VerticalAlignment="Center"
-                     MinWidth="52" TextAlignment="Center" />
+                     MinWidth="50" TextAlignment="Center" Classes="ltr" />
           <Button Classes="command" Command="{Binding ZoomInCommand}"
                   AutomationProperties.Name="{x:Static loc:Strings.ZoomIn}"
-                  ToolTip.Tip="{x:Static loc:Strings.ZoomIn}">
+                  ToolTip.Tip="Ctrl++">
             <Path Data="{x:Static vm:Icons.ZoomIn}" Fill="{Binding $parent[Button].Foreground}" />
           </Button>
           <Button Classes="command" Command="{Binding FitWidthCommand}"
@@ -128,76 +304,83 @@
           </Button>
           <Button Classes="command" Command="{Binding FitPageCommand}"
                   AutomationProperties.Name="{x:Static loc:Strings.FitPage}"
-                  ToolTip.Tip="{x:Static loc:Strings.FitPage}">
+                  ToolTip.Tip="Ctrl+0">
             <Path Data="{x:Static vm:Icons.FitPage}" Fill="{Binding $parent[Button].Foreground}" />
           </Button>
 
-          <Rectangle Width="1" Margin="6,4" Fill="{DynamicResource BorderBrush}" />
+          <Border Classes="divider" />
+          </StackPanel>
 
           <Button Classes="command" Command="{Binding ToggleThemeCommand}"
-                  Content="{Binding ThemeLabel}"
                   AutomationProperties.Name="{x:Static loc:Strings.ThemeLabel}"
-                  ToolTip.Tip="{x:Static loc:Strings.ThemeLabel}" />
+                  ToolTip.Tip="{Binding ThemeLabel}">
+            <StackPanel Orientation="Horizontal" Spacing="7">
+              <Path Data="{x:Static vm:Icons.Theme}" Fill="{Binding $parent[Button].Foreground}" />
+              <TextBlock Text="{Binding ThemeLabel}" VerticalAlignment="Center"
+                         IsVisible="{Binding ShowCommandLabels}" />
+            </StackPanel>
+          </Button>
         </StackPanel>
       </Grid>
     </Border>
 
-    <!-- Tool strip -->
-    <Border Grid.Row="1" Classes="bar" BorderThickness="0,0,0,1" Padding="10,4"
+    <!-- Compact windows give the search field a row of its own rather than squeezing it out. -->
+    <Border Grid.Row="1" Classes="bar" BorderThickness="0,0,0,1" Padding="10,0,10,8"
+            IsVisible="{Binding ShowSearchRow}">
+      <Border Classes="searchField">
+        <Grid ColumnDefinitions="Auto,*">
+          <Path Grid.Column="0" Data="{x:Static vm:Icons.Search}" VerticalAlignment="Center"
+                Fill="{DynamicResource TextMutedBrush}" />
+          <TextBox Grid.Column="1" Name="CompactSearchBox" VerticalAlignment="Center"
+                   Watermark="{x:Static loc:Strings.Search}"
+                   Text="{Binding SearchText, Mode=TwoWay}"
+                   AutomationProperties.Name="{x:Static loc:Strings.Search}" />
+        </Grid>
+      </Border>
+    </Border>
+
+    <!-- Tool strip: one rounded group, centred, so the drawing tools read as a single instrument -->
+    <Border Grid.Row="2" Classes="bar" BorderThickness="0,0,0,1" Padding="10,7"
             IsVisible="{Binding HasDocument}"
             AutomationProperties.Name="{x:Static loc:Strings.A11yToolbar}">
-      <ItemsControl ItemsSource="{Binding Toolbox.Tools}">
-        <ItemsControl.ItemsPanel>
-          <ItemsPanelTemplate>
-            <StackPanel Orientation="Horizontal" Spacing="2" />
-          </ItemsPanelTemplate>
-        </ItemsControl.ItemsPanel>
-        <ItemsControl.ItemTemplate>
-          <DataTemplate x:DataType="vm:ToolItemViewModel">
-            <ToggleButton Classes="tool"
-                          IsChecked="{Binding IsSelected, Mode=OneWay}"
-                          Click="OnToolClicked"
-                          Tag="{Binding Tool}"
-                          ToolTip.Tip="{Binding AccessibleName}"
-                          AutomationProperties.Name="{Binding AccessibleName}">
-              <Path Data="{Binding Glyph}" Fill="{Binding $parent[ToggleButton].Foreground}" />
-            </ToggleButton>
-          </DataTemplate>
-        </ItemsControl.ItemTemplate>
-      </ItemsControl>
+      <Border Classes="toolstrip" HorizontalAlignment="Center">
+        <ItemsControl ItemsSource="{Binding Toolbox.Tools}">
+          <ItemsControl.ItemsPanel>
+            <ItemsPanelTemplate>
+              <StackPanel Orientation="Horizontal" Spacing="2" />
+            </ItemsPanelTemplate>
+          </ItemsControl.ItemsPanel>
+          <ItemsControl.ItemTemplate>
+            <DataTemplate x:DataType="vm:ToolItemViewModel">
+              <ToggleButton Classes="tool"
+                            IsChecked="{Binding IsSelected, Mode=OneWay}"
+                            Click="OnToolClicked"
+                            Tag="{Binding Tool}"
+                            ToolTip.Tip="{Binding AccessibleName}"
+                            AutomationProperties.Name="{Binding AccessibleName}">
+                <Path Data="{Binding Glyph}" Fill="{Binding $parent[ToggleButton].Foreground}" />
+              </ToggleButton>
+            </DataTemplate>
+          </ItemsControl.ItemTemplate>
+        </ItemsControl>
+      </Border>
     </Border>
 
     <!-- Main area: thumbnails on the right (the leading side under RTL), properties on the left -->
-    <Grid Grid.Row="2" ColumnDefinitions="Auto,*,Auto">
+    <Grid Grid.Row="3" Name="MainGrid" ColumnDefinitions="200,Auto,*,Auto,268">
 
-      <Border Grid.Column="0" Name="ThumbnailsPanel" Classes="bar" BorderThickness="0,0,1,0" Width="190"
-              IsVisible="{Binding HasDocument}"
+      <Border Grid.Column="0" Name="ThumbnailsPanel" Classes="bar" BorderThickness="0,0,1,0"
+              IsVisible="{Binding IsThumbnailRailVisible}"
               AutomationProperties.Name="{x:Static loc:Strings.A11yThumbnailList}">
-        <DockPanel>
-          <TextBlock DockPanel.Dock="Top" Classes="sectionHeader" Margin="10,10,10,4"
-                     Text="{x:Static loc:Strings.Thumbnails}" />
-          <ListBox Name="ThumbnailList" Background="Transparent" BorderThickness="0"
-                   ItemsSource="{Binding Document.Pages}"
-                   SelectedIndex="{Binding Document.CurrentPageIndex, Mode=TwoWay}">
-            <ListBox.ItemTemplate>
-              <DataTemplate x:DataType="vm:PageViewModel">
-                <StackPanel Spacing="4" Margin="2,4">
-                  <Border Classes="thumb" Classes.current="{Binding IsSelected}"
-                          Width="120" HorizontalAlignment="Center">
-                    <Image Source="{Binding Thumbnail}" Stretch="Uniform" Height="150" />
-                  </Border>
-                  <TextBlock Text="{Binding PageNumber}" HorizontalAlignment="Center"
-                             Classes="muted" FontWeight="{Binding IsSelected, Converter={StaticResource BoolToWeight}}" />
-                </StackPanel>
-              </DataTemplate>
-            </ListBox.ItemTemplate>
-          </ListBox>
-        </DockPanel>
+        <ContentControl Content="{Binding}" ContentTemplate="{StaticResource ThumbnailRail}" />
       </Border>
 
+      <GridSplitter Grid.Column="1" ResizeDirection="Columns"
+                    IsVisible="{Binding IsThumbnailRailVisible}" />
+
       <!-- Document canvas -->
-      <Panel Grid.Column="1" Name="DocumentArea">
-        <ScrollViewer Name="DocumentScroll" Padding="24"
+      <Panel Grid.Column="2" Name="DocumentArea" Classes="board">
+        <ScrollViewer Name="DocumentScroll" Padding="{Binding CanvasPadding}"
                       HorizontalScrollBarVisibility="Auto"
                       AutomationProperties.Name="{x:Static loc:Strings.A11yPageCanvas}"
                       IsVisible="{Binding HasDocument}">
@@ -209,9 +392,12 @@
             </ItemsControl.ItemsPanel>
             <ItemsControl.ItemTemplate>
               <DataTemplate x:DataType="vm:PageViewModel">
-                <Border Classes="page" HorizontalAlignment="Center"
+                <!-- The page is a document, not part of the interface: a right-to-left flow
+                     direction would mirror its content, so the canvas is pinned left-to-right. -->
+                <Border Classes="page" HorizontalAlignment="Center" FlowDirection="LeftToRight"
                         Width="{Binding DisplayWidth}" Height="{Binding DisplayHeight}">
                   <ctl:PageSurface Page="{Binding}"
+                                   FlowDirection="LeftToRight"
                                    Document="{Binding $parent[Window].((vm:MainWindowViewModel)DataContext).Document}"
                                    ActiveTool="{Binding $parent[Window].((vm:MainWindowViewModel)DataContext).Toolbox.ActiveTool}" />
                 </Border>
@@ -221,105 +407,75 @@
         </ScrollViewer>
 
         <!-- Empty state -->
-        <Border IsVisible="{Binding IsEmpty}" Padding="40">
-          <StackPanel VerticalAlignment="Center" HorizontalAlignment="Center" Spacing="14" MaxWidth="460">
-            <Image Source="avares://PdfEditor/Assets/app-256.png" Width="96" Height="96"
-                   HorizontalAlignment="Center" />
-            <TextBlock Classes="display" Text="{x:Static loc:Strings.AppName}"
-                       HorizontalAlignment="Center" />
-            <TextBlock Classes="muted" Text="{x:Static loc:Strings.AppTagline}"
-                       HorizontalAlignment="Center" TextAlignment="Center" />
-            <TextBlock Text="{x:Static loc:Strings.EmptyStateBody}" TextAlignment="Center"
-                       HorizontalAlignment="Center" Margin="0,8,0,0" />
-            <Button Classes="primary" Command="{Binding OpenCommand}"
-                    Content="{x:Static loc:Strings.OpenFile}" HorizontalAlignment="Center" />
-            <TextBlock Classes="muted" Text="{x:Static loc:Strings.PrivacyBody}"
-                       TextAlignment="Center" Margin="0,16,0,0" />
-          </StackPanel>
+        <ScrollViewer IsVisible="{Binding IsEmpty}" Padding="24">
+          <Border Classes="card" MaxWidth="520" VerticalAlignment="Center" HorizontalAlignment="Center">
+            <StackPanel Spacing="14">
+              <Image Source="avares://PdfEditor/Assets/app-256.png" Width="88" Height="88"
+                     HorizontalAlignment="Center" />
+              <TextBlock Classes="display" Text="{x:Static loc:Strings.AppName}"
+                         HorizontalAlignment="Center" TextAlignment="Center" />
+              <TextBlock Classes="muted" Text="{x:Static loc:Strings.AppTagline}"
+                         HorizontalAlignment="Center" TextAlignment="Center" />
+              <TextBlock Text="{x:Static loc:Strings.EmptyStateBody}" TextAlignment="Center"
+                         HorizontalAlignment="Center" Margin="0,4,0,0" />
+              <Button Classes="primary" Command="{Binding OpenCommand}"
+                      Content="{x:Static loc:Strings.OpenFile}" HorizontalAlignment="Center" />
+
+              <Border Classes="group" Margin="0,6,0,0">
+                <StackPanel Spacing="6">
+                  <TextBlock Classes="sectionHeader" Margin="0" Text="{x:Static loc:Strings.ShortcutsTitle}" />
+                  <TextBlock Classes="muted ltr" HorizontalAlignment="Left"
+                             Text="Ctrl+O · Ctrl+S · Ctrl+P · Ctrl+Z · Ctrl+F · Ctrl+0" />
+                </StackPanel>
+              </Border>
+
+              <TextBlock Classes="muted" Text="{x:Static loc:Strings.PrivacyBody}"
+                         TextAlignment="Center" />
+            </StackPanel>
+          </Border>
+        </ScrollViewer>
+
+        <!-- Compact windows float the panels over the document instead of shrinking it away. -->
+        <Border Classes="bar" HorizontalAlignment="Left" BorderThickness="0,0,1,0"
+                Width="{Binding ThumbnailRailWidth}"
+                BoxShadow="{DynamicResource CardShadow}"
+                IsVisible="{Binding IsThumbnailOverlayVisible}"
+                AutomationProperties.Name="{x:Static loc:Strings.A11yThumbnailList}">
+          <ContentControl Content="{Binding}" ContentTemplate="{StaticResource ThumbnailRail}" />
+        </Border>
+
+        <Border Classes="bar" HorizontalAlignment="Right" BorderThickness="1,0,0,0"
+                Width="{Binding PropertiesPanelWidth}"
+                BoxShadow="{DynamicResource CardShadow}"
+                IsVisible="{Binding IsPropertiesFloating}"
+                AutomationProperties.Name="{x:Static loc:Strings.A11yPropertiesPanel}">
+          <ContentControl Content="{Binding}" ContentTemplate="{StaticResource PropertiesPanel}" />
         </Border>
       </Panel>
 
-      <!-- Properties panel -->
-      <Border Grid.Column="2" Name="PropertiesPanel" Classes="bar" BorderThickness="1,0,0,0" Width="250"
-              IsVisible="{Binding Properties.HasTarget, FallbackValue=False}"
+      <GridSplitter Grid.Column="3" ResizeDirection="Columns"
+                    IsVisible="{Binding IsPropertiesDocked}" />
+
+      <Border Grid.Column="4" Name="PropertiesPanel" Classes="bar" BorderThickness="1,0,0,0"
+              IsVisible="{Binding IsPropertiesDocked}"
               AutomationProperties.Name="{x:Static loc:Strings.A11yPropertiesPanel}">
-        <ScrollViewer Padding="12">
-          <StackPanel Spacing="12" DataContext="{Binding Properties}"
-                      x:DataType="vm:PropertiesViewModel">
-            <TextBlock Classes="title" Text="{Binding TitleText}" />
-            <TextBlock Classes="muted" Text="{Binding PageText}" />
-
-            <TextBlock IsVisible="{Binding IsForeign}" Classes="muted"
-                       Text="הערה זו נוצרה בתוכנה אחרת ולכן אינה ניתנת לעריכה כאן. היא תישמר כפי שהיא." />
-
-            <StackPanel Spacing="8" IsVisible="{Binding IsEditable}">
-              <TextBlock Classes="sectionHeader" Text="צבע" />
-              <ItemsControl ItemsSource="{x:Static vm:PropertiesViewModel.Swatches}">
-                <ItemsControl.ItemsPanel>
-                  <ItemsPanelTemplate>
-                    <WrapPanel />
-                  </ItemsPanelTemplate>
-                </ItemsControl.ItemsPanel>
-                <ItemsControl.ItemTemplate>
-                  <DataTemplate x:DataType="vm:ColorSwatch">
-                    <Button Width="32" Height="32" Margin="0,0,6,6" Padding="0"
-                            Click="OnSwatchClicked" Tag="{Binding}"
-                            AutomationProperties.Name="{Binding Name}"
-                            ToolTip.Tip="{Binding Name}"
-                            Background="{Binding Color, Converter={StaticResource AnnotationColorToBrush}}"
-                            BorderBrush="{DynamicResource BorderStrongBrush}" BorderThickness="1"
-                            CornerRadius="4" />
-                  </DataTemplate>
-                </ItemsControl.ItemTemplate>
-              </ItemsControl>
-
-              <TextBlock Classes="sectionHeader" Text="עובי קו" IsVisible="{Binding SupportsLineWidth}" />
-              <Slider Minimum="0.5" Maximum="16" TickFrequency="0.5" IsSnapToTickEnabled="True"
-                      IsVisible="{Binding SupportsLineWidth}"
-                      Value="{Binding LineWidth, Mode=TwoWay}"
-                      AutomationProperties.Name="עובי קו" />
-
-              <TextBlock Classes="sectionHeader" Text="שקיפות" />
-              <Slider Minimum="0.1" Maximum="1.0" TickFrequency="0.05" IsSnapToTickEnabled="True"
-                      Value="{Binding Opacity, Mode=TwoWay}"
-                      AutomationProperties.Name="שקיפות" />
-
-              <StackPanel Spacing="8" IsVisible="{Binding IsTextBox}">
-                <TextBlock Classes="sectionHeader" Text="{x:Static loc:Strings.ToolTextBox}" />
-                <TextBox AcceptsReturn="True" MinHeight="90" TextWrapping="Wrap"
-                         Text="{Binding Text, Mode=TwoWay}"
-                         AutomationProperties.Name="{x:Static loc:Strings.ToolTextBox}" />
-                <TextBlock Classes="sectionHeader" Text="גודל גופן" />
-                <Slider Minimum="8" Maximum="48" TickFrequency="1" IsSnapToTickEnabled="True"
-                        Value="{Binding FontSize, Mode=TwoWay}"
-                        AutomationProperties.Name="גודל גופן" />
-              </StackPanel>
-
-              <TextBlock Classes="muted" Text="{Binding GeometryText}" />
-            </StackPanel>
-
-            <StackPanel Orientation="Horizontal" Spacing="8"
-                        DataContext="{Binding $parent[Window].DataContext}"
-                        x:DataType="vm:MainWindowViewModel">
-              <Button Classes="secondary" Command="{Binding DuplicateSelectionCommand}"
-                      Content="{x:Static loc:Strings.Duplicate}" />
-              <Button Classes="secondary" Command="{Binding DeleteSelectionCommand}"
-                      Content="{x:Static loc:Strings.Delete}" />
-            </StackPanel>
-          </StackPanel>
-        </ScrollViewer>
+        <ContentControl Content="{Binding}" ContentTemplate="{StaticResource PropertiesPanel}" />
       </Border>
     </Grid>
 
     <!-- Status bar -->
-    <Border Grid.Row="3" Classes="bar" BorderThickness="0,1,0,0" Padding="12,6"
+    <Border Grid.Row="4" Classes="bar" BorderThickness="0,1,0,0" Padding="12,6"
             AutomationProperties.Name="{x:Static loc:Strings.A11yStatusBar}">
       <Grid ColumnDefinitions="Auto,Auto,*,Auto,Auto">
-        <TextBlock Grid.Column="0" Text="{Binding Document.PageIndicatorText}"
-                   IsVisible="{Binding HasDocument}" VerticalAlignment="Center" />
-        <TextBlock Grid.Column="1" Margin="16,0" VerticalAlignment="Center"
-                   IsVisible="{Binding HasDocument}"
-                   Text="{Binding Document.SaveStateText}" />
+        <Border Grid.Column="0" Classes="pill" IsVisible="{Binding HasDocument}">
+          <TextBlock Text="{Binding Document.PageIndicatorText}" VerticalAlignment="Center" />
+        </Border>
+
+        <Border Grid.Column="1" Classes="pill" Margin="8,0"
+                Classes.dirty="{Binding Document.IsDirty, FallbackValue=False}"
+                IsVisible="{Binding HasDocument}">
+          <TextBlock Text="{Binding Document.SaveStateText}" VerticalAlignment="Center" />
+        </Border>
 
         <StackPanel Grid.Column="2" Orientation="Horizontal" Spacing="10" Margin="16,0"
                     IsVisible="{Binding IsBusy}">
@@ -338,6 +494,94 @@
         <TextBlock Grid.Column="4" Margin="16,0,0,0" VerticalAlignment="Center" Classes="muted"
                    Text="{Binding ActiveToolLabel}" IsVisible="{Binding HasDocument}" />
       </Grid>
+    </Border>
+
+    <!-- Print dialog. Modal within the window, so nothing about the document changes behind it. -->
+    <Border Grid.Row="0" Grid.RowSpan="5" Background="{DynamicResource ScrimBrush}"
+            IsVisible="{Binding IsPrintPreviewOpen}">
+      <Border Classes="card" MaxWidth="720" MaxHeight="640" Margin="24"
+              VerticalAlignment="Center" HorizontalAlignment="Center"
+              DataContext="{Binding PrintPreview}" x:DataType="vm:PrintPreviewViewModel">
+        <DockPanel>
+          <Grid DockPanel.Dock="Top" ColumnDefinitions="*,Auto" Margin="0,0,0,12">
+            <TextBlock Grid.Column="0" Classes="title" Text="{x:Static loc:Strings.PrintPreview}" />
+            <Button Grid.Column="1" Classes="command" Padding="6"
+                    Command="{Binding $parent[Window].((vm:MainWindowViewModel)DataContext).ClosePrintPreviewCommand}"
+                    ToolTip.Tip="{x:Static loc:Strings.Close}"
+                    AutomationProperties.Name="{x:Static loc:Strings.Close}">
+              <Path Data="{x:Static vm:Icons.Close}" Fill="{Binding $parent[Button].Foreground}" />
+            </Button>
+          </Grid>
+
+          <StackPanel DockPanel.Dock="Bottom" Orientation="Horizontal" Spacing="8"
+                      HorizontalAlignment="Left" Margin="0,14,0,0">
+            <Button Classes="primary"
+                    Command="{Binding $parent[Window].((vm:MainWindowViewModel)DataContext).ConfirmPrintCommand}"
+                    Content="{x:Static loc:Strings.Print}" />
+            <Button Classes="secondary"
+                    Command="{Binding $parent[Window].((vm:MainWindowViewModel)DataContext).ClosePrintPreviewCommand}"
+                    Content="{x:Static loc:Strings.Cancel}" />
+          </StackPanel>
+
+          <ScrollViewer>
+            <StackPanel Spacing="12">
+              <Grid ColumnDefinitions="*,Auto" ColumnSpacing="12">
+                <StackPanel Grid.Column="0" Spacing="4">
+                  <TextBlock Classes="sectionHeader" Margin="0" Text="{x:Static loc:Strings.Printer}" />
+                  <ComboBox ItemsSource="{Binding Printers}" SelectedItem="{Binding SelectedPrinter}"
+                            HorizontalAlignment="Stretch"
+                            AutomationProperties.Name="{x:Static loc:Strings.Printer}">
+                    <ComboBox.ItemTemplate>
+                      <DataTemplate>
+                        <TextBlock Text="{Binding Name}" />
+                      </DataTemplate>
+                    </ComboBox.ItemTemplate>
+                  </ComboBox>
+                </StackPanel>
+                <StackPanel Grid.Column="1" Spacing="4" Width="180">
+                  <TextBlock Classes="sectionHeader" Margin="0" Text="{x:Static loc:Strings.PrintRange}" />
+                  <TextBox Text="{Binding RangeText, Mode=TwoWay}" Watermark="1-3,5"
+                           AutomationProperties.Name="{x:Static loc:Strings.PrintRange}" />
+                </StackPanel>
+              </Grid>
+
+              <TextBlock Classes="error" IsVisible="{Binding HasRangeError}" Text="{Binding RangeError}" />
+
+              <Border Classes="group">
+                <StackPanel Spacing="6">
+                  <CheckBox IsChecked="{Binding SeparateSheetsPerContentPage, Mode=TwoWay}"
+                            Content="{x:Static loc:Strings.SeparateSheets}" />
+                  <TextBlock Classes="muted" Text="{x:Static vm:PrintPreviewViewModel.OptionHint}" />
+                  <CheckBox IsChecked="{Binding AssumeDuplex, Mode=TwoWay}"
+                            Content="{x:Static loc:Strings.AssumeDuplex}" />
+                  <TextBlock Classes="muted" Text="{x:Static vm:PrintPreviewViewModel.LimitationText}" />
+                </StackPanel>
+              </Border>
+
+              <TextBlock Text="{Binding SummaryText}" />
+
+              <ItemsControl ItemsSource="{Binding Slots}" MaxHeight="220">
+                <ItemsControl.ItemsPanel>
+                  <ItemsPanelTemplate>
+                    <WrapPanel />
+                  </ItemsPanelTemplate>
+                </ItemsControl.ItemsPanel>
+                <ItemsControl.ItemTemplate>
+                  <DataTemplate x:DataType="vm:PrintSlotViewModel">
+                    <Border Classes="sheet" Classes.blank="{Binding !IsContent}"
+                            Width="52" Height="70" Margin="0,0,8,8"
+                            ToolTip.Tip="{Binding Caption}"
+                            AutomationProperties.Name="{Binding Caption}">
+                      <TextBlock Text="{Binding Label}" HorizontalAlignment="Center"
+                                 VerticalAlignment="Center" Classes="muted" TextAlignment="Center" />
+                    </Border>
+                  </DataTemplate>
+                </ItemsControl.ItemTemplate>
+              </ItemsControl>
+            </StackPanel>
+          </ScrollViewer>
+        </DockPanel>
+      </Border>
     </Border>
   </Grid>
 </Window>

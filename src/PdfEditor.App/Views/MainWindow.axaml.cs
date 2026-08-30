@@ -1,3 +1,4 @@
+using Avalonia;
 using Avalonia.Controls;
 using Avalonia.Input;
 using Avalonia.Interactivity;
@@ -21,14 +22,58 @@ public sealed partial class MainWindow : Window
 
         DataContextChanged += (_, _) =>
         {
+            if (_viewModel is not null) _viewModel.PropertyChanged -= OnViewModelPropertyChanged;
             _viewModel = DataContext as MainWindowViewModel;
             if (_viewModel is null) return;
             _viewModel.Dialogs = new DialogService(this);
+            _viewModel.PropertyChanged += OnViewModelPropertyChanged;
+            _viewModel.ViewportWidth = Bounds.Width > 0 ? Bounds.Width : Width;
+            SyncPanelColumns();
             _viewModel.ThemeChanged += (_, preference) =>
             {
                 if (Avalonia.Application.Current is { } app) ThemeApplier.Apply(app, preference);
             };
         };
+    }
+
+    /// <summary>
+    /// The shell measures itself and hands the width to the view model, which owns every rule about
+    /// what has to give way; the view only applies the result.
+    /// </summary>
+    protected override void OnSizeChanged(SizeChangedEventArgs e)
+    {
+        base.OnSizeChanged(e);
+        if (_viewModel is not null) _viewModel.ViewportWidth = e.NewSize.Width;
+    }
+
+    private void OnViewModelPropertyChanged(object? sender, System.ComponentModel.PropertyChangedEventArgs e)
+    {
+        if (e.PropertyName is nameof(MainWindowViewModel.IsThumbnailRailVisible)
+            or nameof(MainWindowViewModel.IsPropertiesDocked)
+            or nameof(MainWindowViewModel.ThumbnailRailWidth)
+            or nameof(MainWindowViewModel.PropertiesPanelWidth))
+        {
+            SyncPanelColumns();
+        }
+    }
+
+    /// <summary>
+    /// A hidden panel must give its column back, otherwise the grid keeps reserving the width. The
+    /// column is restored to the width the current breakpoint asks for, which also lets a drag on
+    /// the splitter survive until the window crosses into another size.
+    /// </summary>
+    private void SyncPanelColumns()
+    {
+        if (_viewModel is null) return;
+        var grid = this.FindControl<Grid>("MainGrid");
+        if (grid is null || grid.ColumnDefinitions.Count < 5) return;
+
+        grid.ColumnDefinitions[0].Width = _viewModel.IsThumbnailRailVisible
+            ? new GridLength(_viewModel.ThumbnailRailWidth)
+            : new GridLength(0);
+        grid.ColumnDefinitions[4].Width = _viewModel.IsPropertiesDocked
+            ? new GridLength(_viewModel.PropertiesPanelWidth)
+            : new GridLength(0);
     }
 
     private void InitializeComponent() => AvaloniaXamlLoader.Load(this);
@@ -70,12 +115,28 @@ public sealed partial class MainWindow : Window
     /// </summary>
     protected override void OnKeyDown(KeyEventArgs e)
     {
+        if (e.KeyModifiers.HasFlag(KeyModifiers.Control) && e.Key == Key.F)
+        {
+            FocusSearch();
+            e.Handled = true;
+            return;
+        }
+
         if (IsTextInputFocused() && !IsAlwaysAllowed(e))
         {
             e.Handled = false;
             return;
         }
         base.OnKeyDown(e);
+    }
+
+    /// <summary>Ctrl+F reaches whichever of the two search fields the current width is showing.</summary>
+    internal void FocusSearch()
+    {
+        var box = _viewModel?.ShowSearchInCommandBar == false
+            ? this.FindControl<TextBox>("CompactSearchBox")
+            : this.FindControl<TextBox>("SearchBox");
+        box?.Focus();
     }
 
     internal bool IsTextInputFocused() =>

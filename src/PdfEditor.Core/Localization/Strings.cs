@@ -58,6 +58,8 @@ public static class Strings
     public const string FitPage = "התאמה לעמוד";
     public const string ActualSize = "גודל מקורי";
     public const string RotateView = "סיבוב תצוגה";
+    public const string MoreActions = "פעולות נוספות";
+    public const string ShortcutsTitle = "קיצורי מקלדת";
     public const string Thumbnails = "תצוגה מקדימה של עמודים";
     public const string Properties = "מאפיינים";
     public const string PageOf = "עמוד {0} מתוך {1}";
@@ -113,6 +115,7 @@ public static class Strings
     public const string PrintRange = "טווח עמודים";
     public const string PrintAll = "כל העמודים";
     public const string PrintSelection = "עמודים נבחרים";
+    public const string AssumeDuplex = "הערכת מספר הגיליונות מניחה הדפסה דו-צדדית";
 
     // ---- page operations --------------------------------------------------------------------
     public const string PageRangeLabel = "טווח עמודים, לדוגמה 1-3,5,8-10";
