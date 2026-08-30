@@ -164,11 +164,16 @@ public class AnnotationRoundTripTests
         },
         new MarkAnnotation(AnnotationKind.CheckMark)
         {
-            PageIndex = 1, Rect = new PdfRect(320, 500, 40, 40), Opacity = 0.8, Rotation = 12
+            PageIndex = 1,
+            Rect = new PdfRect(320, 500, 40, 40),
+            Opacity = 0.8,
+            Rotation = 12
         },
         new MarkAnnotation(AnnotationKind.CrossMark)
         {
-            PageIndex = 1, Rect = new PdfRect(380, 500, 40, 40), Color = new AnnotationColor(80, 0, 0)
+            PageIndex = 1,
+            Rect = new PdfRect(380, 500, 40, 40),
+            Color = new AnnotationColor(80, 0, 0)
         },
         BuildInk()
     ];
