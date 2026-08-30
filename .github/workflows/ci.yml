@@ -1,0 +1,176 @@
+name: CI
+
+on:
+  push:
+    branches: ["**"]
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+env:
+  DOTNET_CLI_TELEMETRY_OPTOUT: 1
+  DOTNET_NOLOGO: 1
+  DOTNET_SKIP_FIRST_TIME_EXPERIENCE: 1
+
+jobs:
+  # Windows is the target platform, so the authoritative build and the packaged artifact come
+  # from here. Tesseract's native binaries are Windows-only, so this is also the only job where
+  # recognition can run at all.
+  windows:
+    name: Build, test and package (Windows)
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: "8.0.x"
+
+      - name: Cache NuGet packages
+        uses: actions/cache@v4
+        with:
+          path: ~/.nuget/packages
+          key: nuget-${{ runner.os }}-${{ hashFiles('**/Directory.Packages.props') }}
+          restore-keys: nuget-${{ runner.os }}-
+
+      - name: Fetch bundled assets
+        run: pwsh build/fetch-assets.ps1
+
+      - name: Restore
+        run: dotnet restore PdfEditor.sln
+
+      - name: Verify formatting
+        run: dotnet format PdfEditor.sln --verify-no-changes --no-restore --severity warn
+        continue-on-error: true
+
+      - name: Build
+        run: dotnet build PdfEditor.sln -c Release --no-restore
+
+      - name: Test
+        run: dotnet test PdfEditor.sln -c Release --no-build --logger "trx;LogFileName=results.trx"
+
+      - name: Upload test results
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: test-results-windows
+          path: "**/TestResults/*.trx"
+          retention-days: 7
+
+      - name: Package
+        run: pwsh build/package.ps1
+
+      - name: Upload portable package
+        uses: actions/upload-artifact@v4
+        with:
+          name: PdfEditor-win-x64-portable
+          path: artifacts/*.zip
+          retention-days: 14
+
+      - name: Upload checksum
+        uses: actions/upload-artifact@v4
+        with:
+          name: checksums
+          path: artifacts/SHA256SUMS.txt
+          retention-days: 14
+
+  # A second platform is cheap insurance: it proves the domain, PDF and UI layers carry no
+  # accidental Windows dependency, and it runs the headless UI tests without a display.
+  linux:
+    name: Build and test (Linux)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: "8.0.x"
+
+      - name: Fetch bundled assets
+        run: ./build/fetch-assets.sh
+
+      - name: Build and test
+        run: |
+          dotnet restore PdfEditor.sln
+          dotnet build PdfEditor.sln -c Release --no-restore
+          dotnet test PdfEditor.sln -c Release --no-build --logger "console;verbosity=minimal"
+
+  # The product promises it never touches the network. This makes that testable rather than
+  # a claim in a document: any networking API or remote URL in application source fails the build.
+  offline-guarantee:
+    name: No network access in application code
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Reject networking APIs
+        run: |
+          set -euo pipefail
+          pattern='HttpClient|WebClient|System\.Net\.Sockets|System\.Net\.Http|TcpClient|UdpClient|WebRequest|Dns\.'
+          # obj/ holds generated files; the implicit-usings file names System.Net.Http without using it.
+          if grep -rInE "$pattern" src --include='*.cs' --include='*.axaml' \
+               --exclude-dir=obj --exclude-dir=bin; then
+            echo "::error::A networking API appears in application source. See docs/adr/0010-offline-guarantee.md"
+            exit 1
+          fi
+          echo "No networking API found in src/."
+
+      - name: Reject remote asset references
+        run: |
+          set -euo pipefail
+          # Documentation and package metadata may contain URLs; runtime code and markup may not.
+          if grep -rInE 'https?://' src --include='*.cs' --include='*.axaml' \
+               --exclude-dir=obj --exclude-dir=bin \
+               | grep -vE '^\S+:\s*(//|///|\s*\*|<!--)' \
+               | grep -vE 'schemas\.microsoft\.com|github\.com/avaloniaui|learn\.microsoft\.com'; then
+            echo "::error::A remote URL appears in runtime code or markup."
+            exit 1
+          fi
+          echo "No remote asset reference found."
+
+  secrets:
+    name: Secret scan
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - uses: gitleaks/gitleaks-action@v2
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        continue-on-error: true
+
+      - name: Reject committed documents and private data
+        run: |
+          set -euo pipefail
+          if git ls-files | grep -InE '\.(pdf|pfx|snk|p12|key)$|(^|/)signatures/|\.traineddata$'; then
+            echo "::error::A document, key or private asset is committed. See .gitignore."
+            exit 1
+          fi
+          echo "No document, key or private asset is tracked."
+
+  dependencies:
+    name: Dependency audit
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: "8.0.x"
+
+      - name: Restore
+        run: dotnet restore PdfEditor.sln
+
+      - name: Report vulnerable and deprecated packages
+        run: |
+          set -euo pipefail
+          dotnet list PdfEditor.sln package --vulnerable --include-transitive | tee vulnerable.txt
+          dotnet list PdfEditor.sln package --deprecated | tee deprecated.txt
+          if grep -qiE '\bhigh\b|\bcritical\b' vulnerable.txt; then
+            echo "::error::A high or critical severity advisory affects a dependency."
+            exit 1
+          fi
