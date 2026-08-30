@@ -55,10 +55,23 @@ public sealed class PropertiesViewModel : ViewModelBase
     public bool SupportsLineWidth => _target is ShapeAnnotation or InkAnnotation or MarkAnnotation
         or TextBoxAnnotation;
 
+    /// <summary>
+    /// The colour swatch. A text box has no stroke of its own, so for one the swatch is the ink of
+    /// the glyphs — otherwise picking a colour would appear to do nothing at all.
+    /// </summary>
     public AnnotationColor Color
     {
-        get => _target?.Color ?? AnnotationColor.Red;
-        set => Mutate(a => a.Color = value, Strings.ToolSelect);
+        get => _target switch
+        {
+            TextBoxAnnotation t => t.TextColor,
+            { } a => a.Color,
+            null => AnnotationColor.Red
+        };
+        set => Mutate(a =>
+        {
+            a.Color = value;
+            if (a is TextBoxAnnotation t) t.TextColor = value;
+        }, Strings.ToolSelect);
     }
 
     public double LineWidth

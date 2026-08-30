@@ -432,12 +432,16 @@ public sealed class PageSurface : Control
 
         Annotation annotation = kind.Value switch
         {
+            // Plain text, not a sticky note: the common job is filling a form in — a name, an ID
+            // number, a date — and that has to look like it belongs on the page. No background and
+            // no border, so what lands in the PDF is the typed characters and nothing else. The
+            // editor still shows an outline for an empty box; see AnnotationOverlay.
             AnnotationKind.TextBox => new TextBoxAnnotation
             {
                 Text = string.Empty,
-                TextColor = AnnotationColor.Black,
-                BorderColor = DrawColor,
-                BackgroundColor = new AnnotationColor(255, 249, 196, 210)
+                TextColor = DrawColor,
+                BorderColor = null,
+                BackgroundColor = null
             },
             AnnotationKind.CheckMark or AnnotationKind.CrossMark => new MarkAnnotation(kind.Value),
             AnnotationKind.Signature => new SignatureAnnotation(),

@@ -53,13 +53,29 @@ internal static class AnnotationOverlay
     private static Pen Stroke(AnnotationColor c, double width) =>
         new(Brush(c), Math.Max(0.5, width)) { LineCap = PenLineCap.Round, LineJoin = PenLineJoin.Round };
 
+    /// <summary>Editor-only hint marking an empty text field. Never written to the PDF.</summary>
+    private static Pen EmptyFieldGuide(double scale) =>
+        new(new SolidColorBrush(AvaloniaColor.FromArgb(110, 122, 132, 148)), Math.Max(1, scale))
+        {
+            DashStyle = new DashStyle([4, 3], 0)
+        };
+
     private static void DrawTextBox(DrawingContext context, TextBoxAnnotation a, Rect target, double scale)
     {
         if (a.BackgroundColor is { } background) context.FillRectangle(Brush(background), target);
         if (a.BorderColor is { } border && a.LineWidth > 0)
             context.DrawRectangle(null, Stroke(border, a.LineWidth * scale), target.Deflate(a.LineWidth * scale / 2));
 
-        if (string.IsNullOrEmpty(a.Text)) return;
+        // A text box carries no background or border by default, so an empty one would draw
+        // nothing at all and the user would lose a field they had just placed. The editor shows a
+        // faint dashed outline instead. It exists only here: AnnotationRenderer writes the PDF and
+        // has no such guide, so nothing of it reaches the file.
+        if (string.IsNullOrEmpty(a.Text))
+        {
+            if (a.BackgroundColor is null && a.BorderColor is null)
+                context.DrawRectangle(null, EmptyFieldGuide(scale), target);
+            return;
+        }
 
         // Text is laid out logically here; Avalonia applies its own bidi when it draws.
         var typeface = new Typeface(FontFamily.Default,
