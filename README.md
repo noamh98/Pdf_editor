@@ -17,17 +17,31 @@ Captured from the real application rendering headlessly; they are not mockups.
 
 | Start screen |
 | --- |
-| ![The start screen](docs/images/start-screen.png) |
+| ![The start screen](docs/images/start-light.png) |
+
+Filling a form in: a name and an identity number placed as plain text, with the dashed guide the
+editor draws around the selected field. That guide never reaches the PDF.
 
 | Editing, light theme | Editing, dark theme |
 | --- | --- |
-| ![The editor in the light theme](docs/images/shell-light.png) | ![The editor in the dark theme](docs/images/shell-dark.png) |
+| ![The editor in the light theme](docs/images/shell-wide-light.png) | ![The editor in the dark theme](docs/images/shell-wide-dark.png) |
 
 At a narrow window the shell rearranges itself: the thumbnail rail closes, the side panels float
 over the document instead of squeezing it, the search field takes a row of its own and the document
 operations move into an overflow menu.
 
-![The editor in a narrow window](docs/images/shell-compact.png)
+![The editor in a narrow window](docs/images/shell-minimum-light.png)
+
+The three breakpoints, from the width where labels stop fitting to the width where the panels start
+floating:
+
+| Medium — 1040 | Compact — 820 |
+| --- | --- |
+| ![The editor at a medium width](docs/images/shell-medium-light.png) | ![The editor at a compact width](docs/images/shell-compact-light.png) |
+
+Every image above is produced by `tools/PdfEditor.Shots`, which boots the real application
+headlessly and captures it. Run `dotnet run --project tools/PdfEditor.Shots -- artifacts/shots` to
+regenerate them.
 
 Rotating, deleting and extracting pages happens in one dialog, and always writes a new file.
 
@@ -40,6 +54,13 @@ Rotating, deleting and extracting pages happens in one dialog, and always writes
 - Continuous page view with virtualisation, a thumbnail rail, and page navigation.
 - Zoom in and out, fit width, fit page, actual size.
 - Long operations report progress and can be cancelled; the interface thread is never blocked.
+
+**Filling forms**
+- Text is placed **plain** — no background, no border — so a name, an identity number or a date
+  looks like it belongs on the page rather than stuck to it. What reaches the PDF is the glyphs.
+- An empty field is outlined with a faint dashed guide so it cannot be lost before it is typed
+  into. The guide is drawn by the editor only and is never written to the file.
+- Real bidirectional layout, so digits and Latin inside a Hebrew line keep their place.
 
 **Annotating**
 - Hebrew text boxes with real bidirectional layout, rectangles, ellipses, lines, arrows, freehand
@@ -55,6 +76,11 @@ Rotating, deleting and extracting pages happens in one dialog, and always writes
   complete on disk.
 - **Export final copy** flattens the annotations into the page content and always writes a *new*
   file. The source is never overwritten by an export.
+- Closing the window with unsaved changes asks first. There is no path that discards work silently.
+- **Autosave and crash recovery.** Unsaved annotations are written to a sidecar every 45 seconds and
+  offered back if a run ends without shutting down. The document itself is never copied or touched,
+  and a clean exit leaves nothing behind to offer. What the sidecar holds, and for how long, is
+  spelled out in `docs/PRIVACY.md`.
 
 **Document operations**
 - Merge several documents into a new file, and split a document into one file per page.
