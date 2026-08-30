@@ -40,6 +40,24 @@ a server.
 Deleting the whole `PdfEditor` folder returns the application to a first-run state. The portable
 build itself keeps nothing next to the executable.
 
+## Recovery files
+
+Autosave exists so an interrupted session does not cost you your work, and it writes only what it
+has to: the annotations you have added and not yet saved, as the editor's own JSON, in
+`recovery\`. The document itself is never copied and never modified — a recovery re-applies
+annotations to the file as it already sits on disk.
+
+Two things follow from that, and both are worth stating plainly. The sidecar holds **the text you
+typed**, which for a filled-in form means names, identity numbers and dates, and it holds them
+**unprotected** — as readable JSON, not under DPAPI as a signature is. It is written to your local
+application data, which is as readable as any other file in your own profile. And it is deliberately
+short-lived: it is deleted the moment the document is saved, the moment you close the document, and
+on any deliberate exit, whether you chose to save or explicitly chose not to. What remains after a
+clean shutdown is nothing at all.
+
+If that is not acceptable for a particular document, turn autosave off in settings before you open
+it; recovery files can also be cleared at any time from there.
+
 ## Signatures
 
 A stored signature is personal data and is treated as such. It is written only under your local
