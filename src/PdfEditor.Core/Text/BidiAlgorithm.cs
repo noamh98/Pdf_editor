@@ -80,7 +80,7 @@ public static class BidiAlgorithm
 
         state.Run(paragraphLevel);
         byte[] levels = state.GetLevels(paragraphLevel);
-        int[] visual = ComputeVisualOrder(levels, state.InitialTypes, paragraphLevel);
+        int[] visual = ComputeVisualOrder(text, levels, state.InitialTypes, paragraphLevel);
         return new BidiResult(text, paragraphLevel, levels, visual);
     }
 
@@ -112,7 +112,7 @@ public static class BidiAlgorithm
     /// <summary>True when the paragraph's resolved base direction is right-to-left.</summary>
     public static bool IsRightToLeft(string text) => Analyze(text).IsRightToLeftParagraph;
 
-    private static int[] ComputeVisualOrder(byte[] levels, BidiClass[] initialTypes, byte paragraphLevel)
+    private static int[] ComputeVisualOrder(string text, byte[] levels, BidiClass[] initialTypes, byte paragraphLevel)
     {
         int n = levels.Length;
         // L1: reset trailing whitespace / separators to the paragraph level.
@@ -158,7 +158,42 @@ public static class BidiAlgorithm
                 Array.Reverse(order, start, i - start + 1);
             }
         }
+
+        RestoreClusters(text, initialTypes, order);
         return order;
+    }
+
+    /// <summary>
+    /// Rule L3, plus the same treatment for surrogate pairs.
+    /// </summary>
+    /// <remarks>
+    /// L2 reverses UTF-16 code units, but a combining mark is not an independent character and a
+    /// surrogate pair is not two characters. After an odd-level run is reversed, marks precede the
+    /// letter they belong to and the halves of an astral character are swapped — which a PDF
+    /// text-showing operator renders as a mark attached to the wrong letter and as two replacement
+    /// glyphs. L3 exists precisely for a renderer that places glyphs in the order supplied, which
+    /// is what this output feeds, so the logical order inside a cluster is put back.
+    /// </remarks>
+    private static void RestoreClusters(string text, BidiClass[] initialTypes, int[] order)
+    {
+        for (int i = 0; i < order.Length; i++)
+        {
+            int end = i;
+            // A descending run of adjacent logical indices is a cluster L2 turned around.
+            while (end + 1 < order.Length && order[end + 1] == order[end] - 1
+                                          && ContinuesPreviousCharacter(text, initialTypes, order[end]))
+                end++;
+            if (end > i) Array.Reverse(order, i, end - i + 1);
+            i = end;
+        }
+    }
+
+    /// <summary>True when the unit at <paramref name="index"/> cannot stand on its own.</summary>
+    private static bool ContinuesPreviousCharacter(string text, BidiClass[] initialTypes, int index)
+    {
+        if (index <= 0) return false;
+        if (initialTypes[index] == BidiClass.NSM) return true;
+        return char.IsLowSurrogate(text[index]) && char.IsHighSurrogate(text[index - 1]);
     }
 
     private static bool IsWhitespaceOrIsolateFormat(BidiClass t) => t is BidiClass.WS
@@ -460,14 +495,18 @@ public static class BidiAlgorithm
             public void ResolveWeakTypes()
             {
                 // W1: NSM takes the type of the previous character (sos at sequence start),
-                //     isolate initiators and PDI make it ON.
+                //     isolate initiators and PDI make it ON. The previous type is the one W1 has
+                //     already resolved, not the original: the worked example in UAX#9 is
+                //     "AL NSM NSM -> AL AL AL", so a run of marks all follows the same base
+                //     letter. Reading the original type instead leaves the second mark an NSM,
+                //     which then resolves to the paragraph level and is torn off its letter —
+                //     every vocalised Hebrew word has such a run.
                 var prevType = _sos;
                 for (int i = 0; i < _types.Length; i++)
                 {
-                    var t = _types[i];
-                    if (t == BidiClass.NSM)
+                    if (_types[i] == BidiClass.NSM)
                         _types[i] = IsIsolateInitiator(prevType) || prevType == BidiClass.PDI ? BidiClass.ON : prevType;
-                    prevType = t;
+                    prevType = _types[i];
                 }
 
                 // W2: EN -> AN when the last strong type is AL.
