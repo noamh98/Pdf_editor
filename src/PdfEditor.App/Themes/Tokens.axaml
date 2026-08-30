@@ -1,0 +1,116 @@
+<ResourceDictionary xmlns="https://github.com/avaloniaui"
+                    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml">
+  <!--
+    Design tokens. Every colour in the application comes from here; no view declares a literal.
+    Contrast ratios below were computed against the WCAG 2.1 formula and are stated as measured.
+  -->
+  <ResourceDictionary.ThemeDictionaries>
+
+    <ResourceDictionary x:Key="Light">
+      <!-- Surfaces -->
+      <Color x:Key="CanvasColor">#F4F6F9</Color>
+      <Color x:Key="PanelColor">#FFFFFF</Color>
+      <Color x:Key="PanelAltColor">#EDF1F6</Color>
+      <Color x:Key="BorderColor">#D8DEE7</Color>
+      <Color x:Key="BorderStrongColor">#B7C1CE</Color>
+      <Color x:Key="ShadowColor">#22000000</Color>
+      <Color x:Key="PageShadowColor">#33000000</Color>
+
+      <!-- Text: 15.28:1 on canvas, 16.55:1 on panel -->
+      <Color x:Key="TextColor">#1A1F27</Color>
+      <!-- Secondary text: 5.56:1 on canvas -->
+      <Color x:Key="TextMutedColor">#5A6470</Color>
+      <Color x:Key="TextOnAccentColor">#FFFFFF</Color>
+
+      <!-- Accent: 8.31:1 against panel, and white on it is also 8.31:1 -->
+      <Color x:Key="AccentColor">#1F4E8C</Color>
+      <Color x:Key="AccentHoverColor">#2A63AC</Color>
+      <Color x:Key="AccentSoftColor">#E4EDF9</Color>
+      <Color x:Key="FocusColor">#1F4E8C</Color>
+
+      <!-- Status: 7.54:1 for danger on panel -->
+      <Color x:Key="DangerColor">#A32020</Color>
+      <Color x:Key="SuccessColor">#1D6B3A</Color>
+      <Color x:Key="WarningColor">#8A5A00</Color>
+
+      <Color x:Key="SelectionColor">#3D1F4E8C</Color>
+      <Color x:Key="HoverColor">#141F4E8C</Color>
+    </ResourceDictionary>
+
+    <ResourceDictionary x:Key="Dark">
+      <Color x:Key="CanvasColor">#14181F</Color>
+      <Color x:Key="PanelColor">#1B2029</Color>
+      <Color x:Key="PanelAltColor">#232A35</Color>
+      <Color x:Key="BorderColor">#2C3542</Color>
+      <Color x:Key="BorderStrongColor">#3E4A5A</Color>
+      <Color x:Key="ShadowColor">#66000000</Color>
+      <Color x:Key="PageShadowColor">#88000000</Color>
+
+      <!-- Text: 15.02:1 on canvas, 13.79:1 on panel -->
+      <Color x:Key="TextColor">#E8ECF3</Color>
+      <!-- Secondary text: 7.21:1 on canvas -->
+      <Color x:Key="TextMutedColor">#9AA6B6</Color>
+      <Color x:Key="TextOnAccentColor">#0B1017</Color>
+
+      <!-- Accent: 7.56:1 against panel; the dark text on it is 8.83:1 -->
+      <Color x:Key="AccentColor">#7FB2FF</Color>
+      <Color x:Key="AccentHoverColor">#9CC4FF</Color>
+      <Color x:Key="AccentSoftColor">#1E2C3F</Color>
+      <Color x:Key="FocusColor">#7FB2FF</Color>
+
+      <!-- Status: 7.16:1 for danger on panel -->
+      <Color x:Key="DangerColor">#FF8A80</Color>
+      <Color x:Key="SuccessColor">#6FD08C</Color>
+      <Color x:Key="WarningColor">#F0C05A</Color>
+
+      <Color x:Key="SelectionColor">#4D7FB2FF</Color>
+      <Color x:Key="HoverColor">#1F7FB2FF</Color>
+    </ResourceDictionary>
+  </ResourceDictionary.ThemeDictionaries>
+
+  <!-- Brushes derived from the theme colours -->
+  <SolidColorBrush x:Key="CanvasBrush" Color="{DynamicResource CanvasColor}" />
+  <SolidColorBrush x:Key="PanelBrush" Color="{DynamicResource PanelColor}" />
+  <SolidColorBrush x:Key="PanelAltBrush" Color="{DynamicResource PanelAltColor}" />
+  <SolidColorBrush x:Key="BorderBrush" Color="{DynamicResource BorderColor}" />
+  <SolidColorBrush x:Key="BorderStrongBrush" Color="{DynamicResource BorderStrongColor}" />
+  <SolidColorBrush x:Key="TextBrush" Color="{DynamicResource TextColor}" />
+  <SolidColorBrush x:Key="TextMutedBrush" Color="{DynamicResource TextMutedColor}" />
+  <SolidColorBrush x:Key="TextOnAccentBrush" Color="{DynamicResource TextOnAccentColor}" />
+  <SolidColorBrush x:Key="AccentBrush" Color="{DynamicResource AccentColor}" />
+  <SolidColorBrush x:Key="AccentHoverBrush" Color="{DynamicResource AccentHoverColor}" />
+  <SolidColorBrush x:Key="AccentSoftBrush" Color="{DynamicResource AccentSoftColor}" />
+  <SolidColorBrush x:Key="FocusBrush" Color="{DynamicResource FocusColor}" />
+  <SolidColorBrush x:Key="DangerBrush" Color="{DynamicResource DangerColor}" />
+  <SolidColorBrush x:Key="SuccessBrush" Color="{DynamicResource SuccessColor}" />
+  <SolidColorBrush x:Key="WarningBrush" Color="{DynamicResource WarningColor}" />
+  <SolidColorBrush x:Key="SelectionBrush" Color="{DynamicResource SelectionColor}" />
+  <SolidColorBrush x:Key="HoverBrush" Color="{DynamicResource HoverColor}" />
+
+  <!-- Spacing scale, in device-independent pixels -->
+  <x:Double x:Key="Space1">4</x:Double>
+  <x:Double x:Key="Space2">8</x:Double>
+  <x:Double x:Key="Space3">12</x:Double>
+  <x:Double x:Key="Space4">16</x:Double>
+  <x:Double x:Key="Space5">24</x:Double>
+  <x:Double x:Key="Space6">32</x:Double>
+
+  <Thickness x:Key="PanelPadding">12</Thickness>
+  <Thickness x:Key="DialogPadding">20</Thickness>
+
+  <!-- Radii -->
+  <CornerRadius x:Key="RadiusSmall">4</CornerRadius>
+  <CornerRadius x:Key="RadiusMedium">8</CornerRadius>
+  <CornerRadius x:Key="RadiusLarge">12</CornerRadius>
+
+  <!-- Typography. The stack keeps Hebrew readable even where the first choice is absent. -->
+  <FontFamily x:Key="UiFontFamily">Segoe UI,Noto Sans Hebrew,Arial,DejaVu Sans,sans-serif</FontFamily>
+  <x:Double x:Key="FontSizeSmall">12</x:Double>
+  <x:Double x:Key="FontSizeBody">13.5</x:Double>
+  <x:Double x:Key="FontSizeLarge">16</x:Double>
+  <x:Double x:Key="FontSizeTitle">20</x:Double>
+  <x:Double x:Key="FontSizeDisplay">28</x:Double>
+
+  <!-- Hit target floor, from the accessibility requirements -->
+  <x:Double x:Key="HitTargetMin">32</x:Double>
+</ResourceDictionary>

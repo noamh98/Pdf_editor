@@ -30,4 +30,7 @@
     <None Include="..\..\assets\fonts\**\*" Link="fonts\%(RecursiveDir)%(Filename)%(Extension)" CopyToOutputDirectory="PreserveNewest" />
     <None Include="..\..\assets\tessdata\**\*" Link="tessdata\%(RecursiveDir)%(Filename)%(Extension)" CopyToOutputDirectory="PreserveNewest" />
   </ItemGroup>
+  <ItemGroup>
+    <InternalsVisibleTo Include="PdfEditor.App.Tests" />
+  </ItemGroup>
 </Project>

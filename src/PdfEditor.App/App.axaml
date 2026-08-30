@@ -1,0 +1,19 @@
+<Application xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:views="clr-namespace:PdfEditor.App.Views"
+             x:Class="PdfEditor.App.PdfEditorApp"
+             RequestedThemeVariant="Default">
+  <Application.Styles>
+    <FluentTheme />
+    <StyleInclude Source="avares://PdfEditor/Themes/Controls.axaml" />
+  </Application.Styles>
+  <Application.Resources>
+    <ResourceDictionary>
+      <ResourceDictionary.MergedDictionaries>
+        <ResourceInclude Source="avares://PdfEditor/Themes/Tokens.axaml" />
+      </ResourceDictionary.MergedDictionaries>
+      <views:AnnotationColorToBrushConverter x:Key="AnnotationColorToBrush" />
+      <views:BoolToWeightConverter x:Key="BoolToWeight" />
+    </ResourceDictionary>
+  </Application.Resources>
+</Application>

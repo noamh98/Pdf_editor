@@ -14,8 +14,11 @@
     <PackageVersion Include="Avalonia.Controls.ItemsRepeater" Version="11.1.5" />
     <!-- PDF -->
     <PackageVersion Include="PdfSharp" Version="6.2.4" />
-    <PackageVersion Include="PDFtoImage" Version="5.4.0" />
-    <PackageVersion Include="SkiaSharp" Version="4.150.1" />
+    <!-- Pinned to the 4.x line: it builds against SkiaSharp 2.88, which is what Avalonia 11.3
+         also uses. PDFtoImage 5.x requires SkiaSharp 3.x/4.x, and loading both in one process makes
+         the native libSkiaSharp version mismatch and rendering fail at runtime. -->
+    <PackageVersion Include="PDFtoImage" Version="4.1.1" />
+    <PackageVersion Include="SkiaSharp" Version="2.88.9" />
     <!-- OCR -->
     <PackageVersion Include="Tesseract" Version="5.2.0" />
     <!-- Windows platform integration -->
