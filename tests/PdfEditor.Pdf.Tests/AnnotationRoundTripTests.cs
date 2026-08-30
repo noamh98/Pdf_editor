@@ -1,5 +1,6 @@
 using PdfEditor.Core.Annotations;
 using PdfEditor.Core.Documents;
+using PdfEditor.Core.Text;
 using PdfEditor.Pdf.Documents;
 using PdfSharp.Pdf;
 using PdfSharp.Pdf.IO;
@@ -96,6 +97,172 @@ public class AnnotationRoundTripTests
             Assert.Equal(original.LineWidth, match.LineWidth, 3);
             Assert.False(match.IsForeign);
         }
+    }
+
+    /// <summary>
+    /// Everything the editor lets a user set, on every kind, with values that are all distinct from
+    /// the defaults so a property that is quietly dropped shows up rather than matching by luck.
+    /// </summary>
+    private static IEnumerable<Annotation> EveryKindFullyDressed() =>
+    [
+        new TextBoxAnnotation
+        {
+            PageIndex = 0,
+            Rect = new PdfRect(50, 700, 300, 70),
+            Text = "חוזה מס' 42 — קובץ report-2026.pdf נחתם ב-26/08/2026 בשָׁעָה 14:30",
+            FontSize = 17.5,
+            Bold = true,
+            Italic = true,
+            TextColor = new AnnotationColor(17, 34, 51),
+            BackgroundColor = new AnnotationColor(255, 249, 196),
+            BorderColor = new AnnotationColor(245, 176, 65),
+            Alignment = TextAlignment.Center,
+            Padding = 9.5,
+            Direction = BidiParagraphDirection.RightToLeft,
+            Color = new AnnotationColor(1, 2, 3),
+            LineWidth = 1.75,
+            Opacity = 0.62,
+            Rotation = 33.5
+        },
+        new ShapeAnnotation(AnnotationKind.Rectangle)
+        {
+            PageIndex = 1,
+            Rect = new PdfRect(50, 600, 200, 70),
+            Color = new AnnotationColor(211, 47, 47),
+            FillColor = new AnnotationColor(9, 8, 7, 128),
+            LineWidth = 3.25,
+            Opacity = 0.4,
+            Rotation = -15
+        },
+        new ShapeAnnotation(AnnotationKind.Line)
+        {
+            PageIndex = 0,
+            Rect = new PdfRect(50, 500, 200, 60),
+            Start = new PdfPoint(53.5, 507.25),
+            End = new PdfPoint(247.5, 553.75),
+            Color = new AnnotationColor(56, 142, 60),
+            LineWidth = 2.5,
+            Opacity = 0.9,
+            Rotation = 7
+        },
+        new ShapeAnnotation(AnnotationKind.Arrow)
+        {
+            PageIndex = 0,
+            Rect = new PdfRect(300, 500, 120, 60),
+            Start = new PdfPoint(410, 555),
+            End = new PdfPoint(305, 505),
+            Color = new AnnotationColor(25, 118, 210),
+            LineWidth = 4,
+            Opacity = 0.75
+        },
+        new ShapeAnnotation(AnnotationKind.Highlight)
+        {
+            PageIndex = 0,
+            Rect = new PdfRect(50, 460, 220, 24),
+            Color = AnnotationColor.Yellow,
+            Opacity = 0.35
+        },
+        new MarkAnnotation(AnnotationKind.CheckMark)
+        {
+            PageIndex = 1, Rect = new PdfRect(320, 500, 40, 40), Opacity = 0.8, Rotation = 12
+        },
+        new MarkAnnotation(AnnotationKind.CrossMark)
+        {
+            PageIndex = 1, Rect = new PdfRect(380, 500, 40, 40), Color = new AnnotationColor(80, 0, 0)
+        },
+        BuildInk()
+    ];
+
+    [Fact]
+    public async Task EveryEditablePropertySurvivesSaveAndReopen()
+    {
+        using var work = new TempWorkspace();
+        var source = work.Write("source.pdf", PdfFixtures.TextDocument(2));
+        var target = work.File("annotated.pdf");
+        var originals = EveryKindFullyDressed().ToList();
+
+        await using (var doc = await Loader.OpenAsync(source, Ct))
+            await Writer.SaveAsync(doc, new SaveRequest(target, SaveMode.Editable, originals), null, Ct);
+
+        await using var reopened = await Loader.OpenAsync(target, Ct);
+        var restored = reopened.LoadAnnotations();
+        Assert.Equal(originals.Count, restored.Count);
+
+        foreach (var original in originals)
+        {
+            var match = Assert.Single(restored, a => a.Id == original.Id);
+            Assert.Equal(original.Kind, match.Kind);
+            Assert.Equal(original.PageIndex, match.PageIndex);
+            Assert.Equal(original.Rect, match.Rect);
+            Assert.Equal(original.Color, match.Color);
+            Assert.Equal(original.LineWidth, match.LineWidth, 4);
+            Assert.Equal(original.Opacity, match.Opacity, 4);
+            Assert.Equal(original.Rotation, match.Rotation, 4);
+            Assert.False(match.IsForeign);
+
+            switch (original)
+            {
+                case TextBoxAnnotation t:
+                    var rt = Assert.IsType<TextBoxAnnotation>(match);
+                    Assert.Equal(t.Text, rt.Text);
+                    Assert.Equal(t.FontSize, rt.FontSize, 4);
+                    Assert.Equal(t.Bold, rt.Bold);
+                    Assert.Equal(t.Italic, rt.Italic);
+                    Assert.Equal(t.TextColor, rt.TextColor);
+                    Assert.Equal(t.BackgroundColor, rt.BackgroundColor);
+                    Assert.Equal(t.BorderColor, rt.BorderColor);
+                    Assert.Equal(t.Alignment, rt.Alignment);
+                    Assert.Equal(t.Padding, rt.Padding, 4);
+                    Assert.Equal(t.Direction, rt.Direction);
+                    break;
+
+                case ShapeAnnotation sh:
+                    var rs = Assert.IsType<ShapeAnnotation>(match);
+                    Assert.Equal(sh.FillColor, rs.FillColor);
+                    Assert.Equal(sh.Start, rs.Start);
+                    Assert.Equal(sh.End, rs.End);
+                    break;
+
+                case InkAnnotation ink:
+                    var ri = Assert.IsType<InkAnnotation>(match);
+                    Assert.Equal(ink.Strokes.Count, ri.Strokes.Count);
+                    for (int i = 0; i < ink.Strokes.Count; i++)
+                        Assert.Equal(ink.Strokes[i], ri.Strokes[i]);
+                    break;
+            }
+        }
+    }
+
+    // Hebrew reaches the file as an escaped payload and as a /Contents string; both have to come
+    // back byte for byte, including nikud, an embedded Latin file name and Western digits.
+    [Theory]
+    [InlineData("שלום עולם")]
+    [InlineData("בְּרֵאשִׁית בָּרָא אֱלֹהִים")]
+    [InlineData("הקובץ report-2026.pdf נשמר ב-26/08/2026 בשעה 14:30")]
+    [InlineData("מעורב Mixed 123 עברית ABC")]
+    [InlineData("שורה ראשונה\nשורה שנייה\nthird line")]
+    [InlineData("סוגריים (בתוך) [וגם] «כאלה»")]
+    [InlineData("סימן ‏RLM‎ ומקף־עברי")]
+    [InlineData("emoji \U0001F600 בתוך עברית")]
+    public async Task HebrewTextSurvivesTheFileVerbatim(string text)
+    {
+        using var work = new TempWorkspace();
+        var source = work.Write("source.pdf", PdfFixtures.TextDocument(1));
+        var target = work.File("annotated.pdf");
+
+        var original = new TextBoxAnnotation
+        {
+            PageIndex = 0,
+            Rect = new PdfRect(50, 600, 400, 120),
+            Text = text
+        };
+
+        await using (var doc = await Loader.OpenAsync(source, Ct))
+            await Writer.SaveAsync(doc, new SaveRequest(target, SaveMode.Editable, [original]), null, Ct);
+
+        await using var reopened = await Loader.OpenAsync(target, Ct);
+        var restored = Assert.IsType<TextBoxAnnotation>(Assert.Single(reopened.LoadAnnotations()));
+        Assert.Equal(text, restored.Text);
     }
 
     [Fact]
