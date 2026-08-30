@@ -83,6 +83,21 @@ public sealed partial class MainWindow : Window
         if (sender is Control { Tag: EditorTool tool }) _viewModel?.Toolbox.Select(tool);
     }
 
+    private void OnSearchHitClicked(object? sender, RoutedEventArgs e)
+    {
+        if (sender is Control { Tag: SearchHitViewModel hit }) _viewModel?.GoToPage(hit.PageIndex);
+    }
+
+    private void OnPageOperationChosen(object? sender, RoutedEventArgs e)
+    {
+        if (sender is Control { Tag: string name }
+            && Enum.TryParse<PageOperation>(name, out var operation)
+            && _viewModel?.PageOperations is { } operations)
+        {
+            operations.Operation = operation;
+        }
+    }
+
     private void OnSwatchClicked(object? sender, RoutedEventArgs e)
     {
         if (sender is Control { Tag: ColorSwatch swatch }) _viewModel?.Properties?.ApplyColor(swatch.Color);

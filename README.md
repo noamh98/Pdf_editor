@@ -29,6 +29,10 @@ operations move into an overflow menu.
 
 ![The editor in a narrow window](docs/images/shell-compact.png)
 
+Rotating, deleting and extracting pages happens in one dialog, and always writes a new file.
+
+![The page operations dialog](docs/images/page-operations.png)
+
 ## What it does
 
 **Viewing**
@@ -53,9 +57,13 @@ operations move into an overflow menu.
   file. The source is never overwritten by an export.
 
 **Document operations**
-- Merge several documents, split, extract, delete, rotate and reorder pages.
+- Merge several documents into a new file, and split a document into one file per page.
+- Rotate, delete and extract pages by range. Every one of these writes a **new** file, so a wrong
+  range costs nothing and the open document is never modified.
 - Page ranges are written the usual way (`1-3,5,8-10`), with Hebrew error messages that name the
   part that could not be read.
+- Reordering pages is implemented and tested in the engine but is not reachable from the interface
+  yet.
 
 **OCR**
 - Fully offline Hebrew and English recognition using Tesseract with bundled language data.
@@ -71,10 +79,12 @@ operations move into an overflow menu.
   outside any application's control, and the interface says so.
 
 **Signatures**
-- Draw or import a signature image, auto-cropped with a transparent background, stored per Windows
-  user and protected with DPAPI.
-- The interface states plainly that this is a graphical signature and **not** a verified digital
-  signature.
+- The signature store is implemented: an imported image is auto-cropped, given a transparent
+  background, and kept per Windows user under DPAPI protection.
+- **There is no interface for it yet.** The signature tool places a signature annotation, but
+  drawing one, importing one and choosing between saved signatures are not wired up.
+- When they are, the interface will state plainly that this is a graphical signature and **not** a
+  verified digital signature — the wording is already in the string catalogue.
 
 ## System requirements
 
@@ -115,14 +125,14 @@ build/package.sh               # portable folder + zip + SHA256SUMS.txt under ar
 build/test.sh
 ```
 
-348 tests across four projects, all passing at the current commit:
+364 tests across four projects, all passing at the current commit:
 
 | Project | Tests | Covers |
 | --- | --- | --- |
 | `PdfEditor.Core.Tests` | 155 | Page range parsing, the bidirectional algorithm, undo/redo, print sequencing, safe paths, atomic writes |
 | `PdfEditor.Pdf.Tests` | 61 | Open, render, annotate, save, reopen, flatten, merge, split, reorder, rotate — against real PDFs |
 | `PdfEditor.Ocr.Tests` | 82 | OCR geometry, Hebrew normalisation, the cache, the signature library, temporary file cleanup |
-| `PdfEditor.App.Tests` | 50 | The window itself, headless: right-to-left layout, responsive breakpoints, shortcuts, workflows |
+| `PdfEditor.App.Tests` | 66 | The window itself, headless: right-to-left layout, responsive breakpoints, shortcuts, page operations, workflows |
 
 Tests that must not change a source file hash it before and after and assert it is untouched.
 `docs/TESTING.md` describes the strategy, the synthetic corpus, and what is covered by a manual
@@ -163,6 +173,8 @@ important entries:
 - **Performance budgets are targets, not measurements.**
 - Annotations created by other applications are preserved exactly but are shown in the editor as a
   labelled placeholder rather than with their true appearance.
+- The signature library and page reordering have no interface yet, although both are implemented
+  and tested underneath.
 - Password-protected documents are opened read-only and reported as protected.
 - The executable is not code-signed.
 

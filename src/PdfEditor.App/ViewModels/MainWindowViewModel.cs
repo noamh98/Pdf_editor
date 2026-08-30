@@ -36,6 +36,7 @@ public sealed class MainWindowViewModel : ViewModelBase
     private bool _statusIsError;
     private string? _searchText;
     private PrintPreviewViewModel? _printPreview;
+    private PageOperationsViewModel? _pageOperations;
     private double _viewportWidth = 1280;
     private LayoutSize _layoutSize = LayoutSize.Wide;
     private bool _thumbnailsOpen = true;
@@ -81,6 +82,11 @@ public sealed class MainWindowViewModel : ViewModelBase
         ToggleThemeCommand = new RelayCommand(CycleTheme);
         ToggleThumbnailsCommand = new RelayCommand(() => IsThumbnailsOpen = !IsThumbnailsOpen,
             () => Document is not null);
+        ClearSearchCommand = new RelayCommand(() => SearchText = null);
+        ShowPageOperationsCommand = new RelayCommand(ShowPageOperations, () => Document is not null);
+        ClosePageOperationsCommand = new RelayCommand(() => PageOperations = null);
+        ApplyPageOperationCommand = Async(ApplyPageOperationAsync,
+            () => PageOperations?.CanApply == true);
         ClosePrintPreviewCommand = new RelayCommand(ClosePrintPreview);
         ConfirmPrintCommand = Async(PrintAsync, () => PrintPreview?.SelectedPrinter is not null);
         ClearOcrCacheCommand = Async(ClearOcrCacheAsync);
@@ -92,7 +98,7 @@ public sealed class MainWindowViewModel : ViewModelBase
 
     public ToolboxViewModel Toolbox { get; }
 
-    public ObservableCollection<OcrSearchHit> SearchResults { get; } = [];
+    public ObservableCollection<SearchHitViewModel> SearchResults { get; } = [];
 
     // ---- commands ------------------------------------------------------------------------------
     public AsyncRelayCommand OpenCommand { get; }
@@ -122,6 +128,10 @@ public sealed class MainWindowViewModel : ViewModelBase
     public RelayCommand CancelCommand { get; }
     public RelayCommand ToggleThemeCommand { get; }
     public RelayCommand ToggleThumbnailsCommand { get; }
+    public RelayCommand ClearSearchCommand { get; }
+    public RelayCommand ShowPageOperationsCommand { get; }
+    public RelayCommand ClosePageOperationsCommand { get; }
+    public AsyncRelayCommand ApplyPageOperationCommand { get; }
     public RelayCommand ClosePrintPreviewCommand { get; }
     public AsyncRelayCommand ConfirmPrintCommand { get; }
 
@@ -162,6 +172,19 @@ public sealed class MainWindowViewModel : ViewModelBase
     }
 
     public bool IsPrintPreviewOpen => _printPreview is not null;
+
+    public PageOperationsViewModel? PageOperations
+    {
+        get => _pageOperations;
+        private set
+        {
+            if (!SetProperty(ref _pageOperations, value)) return;
+            RaisePropertyChanged(nameof(IsPageOperationsOpen));
+            ApplyPageOperationCommand.RaiseCanExecuteChanged();
+        }
+    }
+
+    public bool IsPageOperationsOpen => _pageOperations is not null;
 
     public bool HasDocument => _document is not null;
 
@@ -234,6 +257,21 @@ public sealed class MainWindowViewModel : ViewModelBase
     public bool IsThumbnailRailVisible => HasDocument && _thumbnailsOpen && !PanelsFloat;
 
     public bool IsThumbnailOverlayVisible => HasDocument && _thumbnailsOpen && PanelsFloat;
+
+    // ---- search ----------------------------------------------------------------------------------
+    public bool HasSearchQuery => !string.IsNullOrWhiteSpace(_searchText);
+
+    public bool HasSearchResults => SearchResults.Count > 0;
+
+    public bool ShowSearchResults => HasDocument && HasSearchQuery;
+
+    /// <summary>
+    /// Search runs over recognised text, so an empty result is usually "OCR has not run here" rather
+    /// than "the word is not in the document". The summary says which.
+    /// </summary>
+    public string SearchSummaryText => SearchResults.Count > 0
+        ? ErrorMessages.Format(Strings.SearchResultCount, SearchResults.Count)
+        : _services.Ocr.Index.Count > 0 ? Strings.SearchNoResults : Strings.SearchNeedsOcr;
 
     public bool IsPropertiesDocked => Properties?.HasTarget == true && !PanelsFloat;
 
@@ -545,6 +583,44 @@ public sealed class MainWindowViewModel : ViewModelBase
 
     public void ClosePrintPreview() => PrintPreview = null;
 
+    // ---- page operations -------------------------------------------------------------------------
+    public void ShowPageOperations()
+    {
+        if (_document is null) return;
+        var operations = new PageOperationsViewModel(_document.PageCount, _document.CurrentPageIndex);
+        operations.PropertyChanged += (_, _) => ApplyPageOperationCommand.RaiseCanExecuteChanged();
+        PageOperations = operations;
+    }
+
+    /// <summary>
+    /// Rotating, deleting or extracting pages always produces a new file. The open document and the
+    /// file it came from are left exactly as they were, so a wrong range costs nothing.
+    /// </summary>
+    public async Task ApplyPageOperationAsync()
+    {
+        if (_document is null || _pageOperations is not { CanApply: true } operations) return;
+
+        var target = await Dialogs.PickSaveFileAsync(Strings.PageOperations,
+            operations.SuggestOutputName(_document.DisplayName), PdfFilter).ConfigureAwait(true);
+        if (target is null) return;
+
+        using var scope = BeginOperation(Strings.PageOperations);
+        try
+        {
+            await _services.Writer.SaveAsync(_document.Document,
+                new SaveRequest(target, SaveMode.Editable, _document.Annotations, operations.BuildEdits()),
+                new Progress<double>(p => Progress = p), scope.Token).ConfigureAwait(true);
+
+            PageOperations = null;
+            ReportStatus(ErrorMessages.Format(Strings.PageOperationDone, Path.GetFileName(target)),
+                isError: false);
+        }
+        catch (PdfOpenException e)
+        {
+            ReportStatus(ErrorMessages.ForOpenError(e.Error), isError: true);
+        }
+    }
+
     public async Task PrintAsync()
     {
         if (_document is null || _printPreview is null) return;
@@ -616,9 +692,12 @@ public sealed class MainWindowViewModel : ViewModelBase
     private void RunSearch()
     {
         SearchResults.Clear();
-        if (string.IsNullOrWhiteSpace(_searchText)) return;
-        foreach (var hit in _services.Ocr.Search(_searchText)) SearchResults.Add(hit);
-        RaisePropertyChanged(nameof(SearchResults));
+        if (!string.IsNullOrWhiteSpace(_searchText))
+            foreach (var hit in _services.Ocr.Search(_searchText))
+                SearchResults.Add(new SearchHitViewModel(hit));
+
+        RaiseAll(nameof(SearchResults), nameof(HasSearchQuery), nameof(HasSearchResults),
+            nameof(ShowSearchResults), nameof(SearchSummaryText));
     }
 
     // ---- editing -------------------------------------------------------------------------------------------
@@ -773,6 +852,7 @@ public sealed class MainWindowViewModel : ViewModelBase
         NextPageCommand.RaiseCanExecuteChanged();
         PreviousPageCommand.RaiseCanExecuteChanged();
         ToggleThumbnailsCommand.RaiseCanExecuteChanged();
+        ShowPageOperationsCommand.RaiseCanExecuteChanged();
         RaiseAll(nameof(WindowTitle));
     }
 

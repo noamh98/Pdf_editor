@@ -60,6 +60,12 @@ public static class Strings
     public const string RotateView = "סיבוב תצוגה";
     public const string MoreActions = "פעולות נוספות";
     public const string ShortcutsTitle = "קיצורי מקלדת";
+    public const string SearchResults = "תוצאות חיפוש";
+    public const string SearchNoResults = "לא נמצאו תוצאות";
+    public const string SearchNeedsOcr =
+        "החיפוש עובד על טקסט שזוהה. הפעילו זיהוי טקסט על העמודים הרלוונטיים ואז חפשו שוב.";
+    public const string SearchResultCount = "{0} תוצאות";
+    public const string PageLabel = "עמוד {0}";
     public const string Thumbnails = "תצוגה מקדימה של עמודים";
     public const string Properties = "מאפיינים";
     public const string PageOf = "עמוד {0} מתוך {1}";
@@ -125,6 +131,12 @@ public static class Strings
     public const string ExtractPages = "חילוץ עמודים";
     public const string SplitEveryPage = "פיצול כל עמוד לקובץ נפרד";
     public const string ReorderHint = "גררו עמוד כדי לשנות את סדרו";
+    public const string PageOperations = "פעולות על עמודים";
+    public const string PageOperationOutputIsNew =
+        "הפעולה כותבת קובץ חדש. קובץ המקור אינו משתנה.";
+    public const string PageOperationSummary = "{0} עמודים ייכללו בקובץ החדש";
+    public const string PageOperationDone = "נוצר קובץ חדש: {0}";
+    public const string RotatePages = "סיבוב עמודים";
 
     // ---- OCR --------------------------------------------------------------------------------
     public const string Ocr = "זיהוי טקסט";

@@ -8,7 +8,7 @@ These are the honest gaps in verification, not features that are known broken.
 
 | # | What | Why it is not verified |
 | --- | --- | --- |
-| V1 | The application has never been run on Windows | It was developed and tested on Linux. The whole solution builds, all 348 tests pass, and the Windows package is produced by cross-publishing, but no one has double-clicked the executable |
+| V1 | The application has never been run on Windows | It was developed and tested on Linux. The whole solution builds, all 364 tests pass, and the Windows package is produced by cross-publishing, but no one has double-clicked the executable |
 | V2 | The printing workflow has never reached a physical printer | Needs Windows and hardware. The sequencing logic is unit tested and the preview comes from the same code that builds the job. `docs/PRINTING.md` carries the protocol |
 | V3 | OCR recognition is not covered by automated tests | The Tesseract NuGet package ships Windows-only natives. Accuracy was measured manually with the Tesseract CLI — see `docs/OCR.md` |
 | V4 | DPAPI signature protection is not exercised on Linux | Windows-only API. The library is tested with protection reported as unavailable |
@@ -39,7 +39,11 @@ These are the honest gaps in verification, not features that are known broken.
 | L17 | PDFtoImage is held at 4.1.x | Version 5.x needs SkiaSharp 3.x/4.x while Avalonia 11.3 uses 2.88; both must move together |
 | L18 | Assets are not committed | `build/fetch-assets` must be run once after cloning. A build without it produces an application that cannot embed text or run OCR |
 | L19 | The asset download is not checksum-verified | Files are fetched over HTTPS from pinned URLs, but no publisher signature or hash manifest is checked |
-| L20 | PDFium runs in-process | A memory-safety bug in it is not contained. Keeping the binaries current is the mitigation |
+| L20 | No interface for the signature library | The store, DPAPI protection, auto-crop and transparency are implemented and tested, but nothing in the window creates, imports or picks a signature. The signature tool places an annotation with no image behind it |
+| L21 | No interface for reordering pages | `PdfDocumentWriter` applies a reorder and it is covered by tests; the page operations dialog offers rotate, delete and extract only |
+| L22 | Splitting is one file per page | The engine supports range-based splitting; the interface does not expose it yet |
+| L23 | Merging cannot reorder the sources | Files are merged in the order the picker returns them. Drag-to-reorder before merging is not implemented |
+| L24 | PDFium runs in-process | A memory-safety bug in it is not contained. Keeping the binaries current is the mitigation |
 
 ## Not in version 1, by decision
 
