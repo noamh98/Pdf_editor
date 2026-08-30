@@ -209,6 +209,7 @@ important entries:
 | Document | What it covers |
 | --- | --- |
 | [`docs/PLAN.md`](docs/PLAN.md) | Scope, architecture, milestones, risks, acceptance criteria |
+| [`docs/PLAN_REVIEW.md`](docs/PLAN_REVIEW.md) | A critical reading of that plan, and what it failed to catch |
 | [`docs/ARCHITECTURE.md`](docs/ARCHITECTURE.md) | Module boundaries, threading, data flow |
 | [`docs/adr/`](docs/adr) | Architecture decision records, with the rejected alternatives |
 | [`docs/BUILD.md`](docs/BUILD.md) | Building, packaging, troubleshooting |
