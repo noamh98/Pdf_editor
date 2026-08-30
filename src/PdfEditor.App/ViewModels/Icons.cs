@@ -40,4 +40,11 @@ public static class Icons
     public const string Pages = "M4,2 H12 L16,6 V18 H4 Z M5.5,3.5 V16.5 H14.5 V7 H11 V3.5 Z";
     public const string Ocr = "M2,2 H7 V3.6 H3.6 V7 H2 Z M13,2 H18 V7 H16.4 V3.6 H13 Z M2,13 H3.6 V16.4 H7 V18 H2 Z M16.4,13 H18 V18 H13 V16.4 H16.4 Z M6,6.5 H14 V8 H10.8 V13.5 H9.2 V8 H6 Z";
     public const string Chevron = "M7,4 L13,10 L7,16 Z";
+
+    public const string Sidebar = "M2,3 H18 V17 H2 Z M3.6,4.6 V15.4 H12 V4.6 Z M13.6,4.6 V15.4 H16.4 V4.6 Z";
+    public const string More = "M4,8.4 A1.6,1.6 0 1 1 4,11.6 A1.6,1.6 0 1 1 4,8.4 Z M10,8.4 A1.6,1.6 0 1 1 10,11.6 A1.6,1.6 0 1 1 10,8.4 Z M16,8.4 A1.6,1.6 0 1 1 16,11.6 A1.6,1.6 0 1 1 16,8.4 Z";
+    public const string Close = "M4.9,3.8 L10,8.9 L15.1,3.8 L16.2,4.9 L11.1,10 L16.2,15.1 L15.1,16.2 L10,11.1 L4.9,16.2 L3.8,15.1 L8.9,10 L3.8,4.9 Z";
+    public const string Trash = "M7.5,2 H12.5 V3.5 H17 V5 H3 V3.5 H7.5 Z M4.5,6.5 H15.5 V18 H4.5 Z M7.5,8.5 V16 H9 V8.5 Z M11,8.5 V16 H12.5 V8.5 Z";
+    public const string Duplicate = "M3,2 H12 V4 H5 V14 H3 Z M6.5,5.5 H17 V18 H6.5 Z M8,7 V16.5 H15.5 V7 Z";
+    public const string Theme = "M10,1.6 A8.4,8.4 0 1 0 10,18.4 A8.4,8.4 0 1 0 10,1.6 Z M10,3.4 V16.6 A6.6,6.6 0 0 0 10,3.4 Z";
 }

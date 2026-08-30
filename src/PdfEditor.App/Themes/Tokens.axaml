@@ -3,7 +3,12 @@
   <!--
     Design tokens. Every colour in the application comes from here; no view declares a literal.
     Contrast ratios below were computed against the WCAG 2.1 formula and are stated as measured.
-  -->
+
+    The brushes live inside the theme dictionaries rather than being derived from colour keys
+    outside them: a SolidColorBrush declared at dictionary level has no place in the logical tree,
+    so a DynamicResource on its Color does not follow a theme variant change and the palette
+    stays frozen on whichever variant loaded first.
+ -->
   <ResourceDictionary.ThemeDictionaries>
 
     <ResourceDictionary x:Key="Light">
@@ -13,8 +18,6 @@
       <Color x:Key="PanelAltColor">#EDF1F6</Color>
       <Color x:Key="BorderColor">#D8DEE7</Color>
       <Color x:Key="BorderStrongColor">#B7C1CE</Color>
-      <Color x:Key="ShadowColor">#22000000</Color>
-      <Color x:Key="PageShadowColor">#33000000</Color>
 
       <!-- Text: 15.28:1 on canvas, 16.55:1 on panel -->
       <Color x:Key="TextColor">#1A1F27</Color>
@@ -33,8 +36,33 @@
       <Color x:Key="SuccessColor">#1D6B3A</Color>
       <Color x:Key="WarningColor">#8A5A00</Color>
 
-      <Color x:Key="SelectionColor">#3D1F4E8C</Color>
-      <Color x:Key="HoverColor">#141F4E8C</Color>
+      <SolidColorBrush x:Key="CanvasBrush" Color="#F4F6F9" />
+      <SolidColorBrush x:Key="PanelBrush" Color="#FFFFFF" />
+      <SolidColorBrush x:Key="PanelAltBrush" Color="#EDF1F6" />
+      <SolidColorBrush x:Key="PanelSunkenBrush" Color="#E7ECF3" />
+      <SolidColorBrush x:Key="BorderBrush" Color="#D8DEE7" />
+      <SolidColorBrush x:Key="BorderStrongBrush" Color="#B7C1CE" />
+      <SolidColorBrush x:Key="TextBrush" Color="#1A1F27" />
+      <SolidColorBrush x:Key="TextMutedBrush" Color="#5A6470" />
+      <SolidColorBrush x:Key="TextOnAccentBrush" Color="#FFFFFF" />
+      <SolidColorBrush x:Key="AccentBrush" Color="#1F4E8C" />
+      <SolidColorBrush x:Key="AccentHoverBrush" Color="#2A63AC" />
+      <SolidColorBrush x:Key="AccentSoftBrush" Color="#E4EDF9" />
+      <SolidColorBrush x:Key="FocusBrush" Color="#1F4E8C" />
+      <SolidColorBrush x:Key="DangerBrush" Color="#A32020" />
+      <SolidColorBrush x:Key="DangerSoftBrush" Color="#FBE9E9" />
+      <SolidColorBrush x:Key="SuccessBrush" Color="#1D6B3A" />
+      <SolidColorBrush x:Key="WarningBrush" Color="#8A5A00" />
+      <SolidColorBrush x:Key="SelectionBrush" Color="#3D1F4E8C" />
+      <SolidColorBrush x:Key="HoverBrush" Color="#141F4E8C" />
+      <SolidColorBrush x:Key="PressedBrush" Color="#291F4E8C" />
+      <SolidColorBrush x:Key="ScrimBrush" Color="#59101725" />
+
+      <!-- The document board sits behind the pages and is intentionally darker than the chrome. -->
+      <SolidColorBrush x:Key="BoardBrush" Color="#E2E7EE" />
+      <BoxShadows x:Key="PageShadow">0 2 6 0 #1F000000, 0 12 28 -6 #33000000</BoxShadows>
+      <BoxShadows x:Key="CardShadow">0 10 30 -8 #33101725</BoxShadows>
+      <BoxShadows x:Key="BarShadow">0 1 3 0 #14101725</BoxShadows>
     </ResourceDictionary>
 
     <ResourceDictionary x:Key="Dark">
@@ -43,8 +71,6 @@
       <Color x:Key="PanelAltColor">#232A35</Color>
       <Color x:Key="BorderColor">#2C3542</Color>
       <Color x:Key="BorderStrongColor">#3E4A5A</Color>
-      <Color x:Key="ShadowColor">#66000000</Color>
-      <Color x:Key="PageShadowColor">#88000000</Color>
 
       <!-- Text: 15.02:1 on canvas, 13.79:1 on panel -->
       <Color x:Key="TextColor">#E8ECF3</Color>
@@ -63,29 +89,34 @@
       <Color x:Key="SuccessColor">#6FD08C</Color>
       <Color x:Key="WarningColor">#F0C05A</Color>
 
-      <Color x:Key="SelectionColor">#4D7FB2FF</Color>
-      <Color x:Key="HoverColor">#1F7FB2FF</Color>
+      <SolidColorBrush x:Key="CanvasBrush" Color="#14181F" />
+      <SolidColorBrush x:Key="PanelBrush" Color="#1B2029" />
+      <SolidColorBrush x:Key="PanelAltBrush" Color="#232A35" />
+      <SolidColorBrush x:Key="PanelSunkenBrush" Color="#11151B" />
+      <SolidColorBrush x:Key="BorderBrush" Color="#2C3542" />
+      <SolidColorBrush x:Key="BorderStrongBrush" Color="#3E4A5A" />
+      <SolidColorBrush x:Key="TextBrush" Color="#E8ECF3" />
+      <SolidColorBrush x:Key="TextMutedBrush" Color="#9AA6B6" />
+      <SolidColorBrush x:Key="TextOnAccentBrush" Color="#0B1017" />
+      <SolidColorBrush x:Key="AccentBrush" Color="#7FB2FF" />
+      <SolidColorBrush x:Key="AccentHoverBrush" Color="#9CC4FF" />
+      <SolidColorBrush x:Key="AccentSoftBrush" Color="#1E2C3F" />
+      <SolidColorBrush x:Key="FocusBrush" Color="#7FB2FF" />
+      <SolidColorBrush x:Key="DangerBrush" Color="#FF8A80" />
+      <SolidColorBrush x:Key="DangerSoftBrush" Color="#33201F" />
+      <SolidColorBrush x:Key="SuccessBrush" Color="#6FD08C" />
+      <SolidColorBrush x:Key="WarningBrush" Color="#F0C05A" />
+      <SolidColorBrush x:Key="SelectionBrush" Color="#4D7FB2FF" />
+      <SolidColorBrush x:Key="HoverBrush" Color="#1F7FB2FF" />
+      <SolidColorBrush x:Key="PressedBrush" Color="#337FB2FF" />
+      <SolidColorBrush x:Key="ScrimBrush" Color="#8C000000" />
+
+      <SolidColorBrush x:Key="BoardBrush" Color="#0E1116" />
+      <BoxShadows x:Key="PageShadow">0 2 6 0 #59000000, 0 14 32 -6 #73000000</BoxShadows>
+      <BoxShadows x:Key="CardShadow">0 12 34 -8 #8C000000</BoxShadows>
+      <BoxShadows x:Key="BarShadow">0 1 3 0 #4D000000</BoxShadows>
     </ResourceDictionary>
   </ResourceDictionary.ThemeDictionaries>
-
-  <!-- Brushes derived from the theme colours -->
-  <SolidColorBrush x:Key="CanvasBrush" Color="{DynamicResource CanvasColor}" />
-  <SolidColorBrush x:Key="PanelBrush" Color="{DynamicResource PanelColor}" />
-  <SolidColorBrush x:Key="PanelAltBrush" Color="{DynamicResource PanelAltColor}" />
-  <SolidColorBrush x:Key="BorderBrush" Color="{DynamicResource BorderColor}" />
-  <SolidColorBrush x:Key="BorderStrongBrush" Color="{DynamicResource BorderStrongColor}" />
-  <SolidColorBrush x:Key="TextBrush" Color="{DynamicResource TextColor}" />
-  <SolidColorBrush x:Key="TextMutedBrush" Color="{DynamicResource TextMutedColor}" />
-  <SolidColorBrush x:Key="TextOnAccentBrush" Color="{DynamicResource TextOnAccentColor}" />
-  <SolidColorBrush x:Key="AccentBrush" Color="{DynamicResource AccentColor}" />
-  <SolidColorBrush x:Key="AccentHoverBrush" Color="{DynamicResource AccentHoverColor}" />
-  <SolidColorBrush x:Key="AccentSoftBrush" Color="{DynamicResource AccentSoftColor}" />
-  <SolidColorBrush x:Key="FocusBrush" Color="{DynamicResource FocusColor}" />
-  <SolidColorBrush x:Key="DangerBrush" Color="{DynamicResource DangerColor}" />
-  <SolidColorBrush x:Key="SuccessBrush" Color="{DynamicResource SuccessColor}" />
-  <SolidColorBrush x:Key="WarningBrush" Color="{DynamicResource WarningColor}" />
-  <SolidColorBrush x:Key="SelectionBrush" Color="{DynamicResource SelectionColor}" />
-  <SolidColorBrush x:Key="HoverBrush" Color="{DynamicResource HoverColor}" />
 
   <!-- Spacing scale, in device-independent pixels -->
   <x:Double x:Key="Space1">4</x:Double>
@@ -99,9 +130,10 @@
   <Thickness x:Key="DialogPadding">20</Thickness>
 
   <!-- Radii -->
-  <CornerRadius x:Key="RadiusSmall">4</CornerRadius>
-  <CornerRadius x:Key="RadiusMedium">8</CornerRadius>
-  <CornerRadius x:Key="RadiusLarge">12</CornerRadius>
+  <CornerRadius x:Key="RadiusSmall">6</CornerRadius>
+  <CornerRadius x:Key="RadiusMedium">10</CornerRadius>
+  <CornerRadius x:Key="RadiusLarge">14</CornerRadius>
+  <CornerRadius x:Key="RadiusPill">999</CornerRadius>
 
   <!-- Typography. The stack keeps Hebrew readable even where the first choice is absent. -->
   <FontFamily x:Key="UiFontFamily">Segoe UI,Noto Sans Hebrew,Arial,DejaVu Sans,sans-serif</FontFamily>
