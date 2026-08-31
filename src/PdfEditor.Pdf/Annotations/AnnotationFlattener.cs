@@ -23,8 +23,7 @@ public static class AnnotationFlattener
         ArgumentNullException.ThrowIfNull(page);
         ArgumentNullException.ThrowIfNull(annotations);
 
-        int foreignDrawn = ForeignFlattener.DrawExistingAppearances(page);
-        int foreignLeft = CountRemainingAnnotations(page);
+        var foreignDrawn = ForeignFlattener.DrawExistingAppearances(page);
 
         int redrawn = 0;
         var ours = annotations.Where(a => !a.IsForeign && !a.Rect.IsEmpty).ToList();
@@ -43,22 +42,36 @@ public static class AnnotationFlattener
             }
         }
 
-        page.Elements.Remove("/Annots");
-        return new FlattenResult(redrawn, foreignDrawn, foreignLeft);
+        int foreignLeft = RemoveWhatWasBurnedIn(page, foreignDrawn);
+        return new FlattenResult(redrawn, foreignDrawn.Count, foreignLeft);
     }
 
-    private static int CountRemainingAnnotations(PdfPage page)
+    /// <summary>
+    /// Drops the annotations whose ink is now part of the page content and returns how many were
+    /// left behind.
+    /// </summary>
+    /// <remarks>
+    /// Ours go because they have just been redrawn, and a foreign annotation goes once its
+    /// appearance stream has been drawn into the content. Everything else stays exactly as it was.
+    /// Clearing <c>/Annots</c> wholesale instead would silently destroy every mark this code
+    /// cannot draw — a comment or a stamp with no appearance stream, a hidden annotation, and
+    /// every hyperlink on the page — none of which flattening puts anything in the place of.
+    /// </remarks>
+    private static int RemoveWhatWasBurnedIn(PdfPage page, IReadOnlySet<int> drawn)
     {
         var annots = page.Elements.GetArray("/Annots");
         if (annots is null) return 0;
-        int count = 0;
-        for (int i = 0; i < annots.Elements.Count; i++)
+
+        for (int i = annots.Elements.Count - 1; i >= 0; i--)
         {
             var dict = annots.Elements.GetDictionary(i);
-            if (dict is null) continue;
-            if (dict.Elements.ContainsKey(AnnotationSerializer.PrivateKey)) continue;
-            if (dict.Elements.GetDictionary("/AP")?.Elements.GetDictionary("/N") is null) count++;
+            if (dict is null || drawn.Contains(i) ||
+                dict.Elements.ContainsKey(AnnotationSerializer.PrivateKey))
+                annots.Elements.RemoveAt(i);
         }
-        return count;
+
+        int remaining = annots.Elements.Count;
+        if (remaining == 0) page.Elements.Remove("/Annots");
+        return remaining;
     }
 }

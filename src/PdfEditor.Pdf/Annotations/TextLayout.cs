@@ -46,11 +46,19 @@ public static class TextLayout
             var analysis = BidiAlgorithm.Analyze(paragraph, direction);
             bool rtl = analysis.IsRightToLeftParagraph;
 
+            // The base direction belongs to the paragraph, not to the line. UAX#9 resolves it once
+            // (P2/P3) and reorders every line of the paragraph at that level, so the resolved
+            // direction is passed down explicitly; asking for Auto again per line lets a line that
+            // happens to begin with a Latin word read left to right inside a Hebrew paragraph.
+            var lineDirection = rtl
+                ? BidiParagraphDirection.RightToLeft
+                : BidiParagraphDirection.LeftToRight;
+
             foreach (var logicalLine in WrapToWidth(gfx, paragraph, font, available))
             {
                 if (y + lineHeight > boxHeight - padding && result.Count > 0) return result;
 
-                var visual = BidiAlgorithm.ToVisual(logicalLine, direction);
+                var visual = BidiAlgorithm.ToVisual(logicalLine, lineDirection);
                 double width = gfx.MeasureString(visual, font).Width;
                 double x = ResolveX(alignment, rtl, padding, available, width);
                 result.Add(new LaidOutLine(visual, x, y + font.GetHeight() * 0.8, width));

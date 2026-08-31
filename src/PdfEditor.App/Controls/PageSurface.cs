@@ -88,6 +88,13 @@ public sealed class PageSurface : Control
     /// <summary>Raised when a text annotation is created or double-clicked, so the shell can edit it.</summary>
     public event EventHandler<TextBoxAnnotation>? TextEditRequested;
 
+    /// <summary>
+    /// Raised for a signature that has been positioned but has no image yet. The annotation is
+    /// deliberately not added to the document: the shell adds it once the user has chosen, so
+    /// cancelling leaves nothing behind and placing one is a single undo step.
+    /// </summary>
+    public event EventHandler<SignatureAnnotation>? SignatureRequested;
+
     protected override Size MeasureOverride(Size availableSize) =>
         Page is null ? default : new Size(Page.DisplayWidth, Page.DisplayHeight);
 
@@ -258,7 +265,11 @@ public sealed class PageSurface : Control
     private void DrawSelection(DrawingContext context, Annotation annotation)
     {
         var rect = ToScreen(annotation.Rect);
-        var accent = this.FindResource("AccentColor") is AvaloniaColor color
+        // PageAccentColor, not the chrome accent: this is drawn on the page, which is white paper
+        // in both themes. The dark theme's accent is picked to carry against a dark panel and
+        // measures 2.16:1 against paper, so selection would all but vanish on the very surface it
+        // is meant to mark.
+        var accent = this.FindResource("PageAccentColor") is AvaloniaColor color
             ? color
             : AvaloniaColor.FromRgb(31, 78, 140);
 
@@ -432,12 +443,16 @@ public sealed class PageSurface : Control
 
         Annotation annotation = kind.Value switch
         {
+            // Plain text, not a sticky note: the common job is filling a form in — a name, an ID
+            // number, a date — and that has to look like it belongs on the page. No background and
+            // no border, so what lands in the PDF is the typed characters and nothing else. The
+            // editor still shows an outline for an empty box; see AnnotationOverlay.
             AnnotationKind.TextBox => new TextBoxAnnotation
             {
                 Text = string.Empty,
-                TextColor = AnnotationColor.Black,
-                BorderColor = DrawColor,
-                BackgroundColor = new AnnotationColor(255, 249, 196, 210)
+                TextColor = DrawColor,
+                BorderColor = null,
+                BackgroundColor = null
             },
             AnnotationKind.CheckMark or AnnotationKind.CrossMark => new MarkAnnotation(kind.Value),
             AnnotationKind.Signature => new SignatureAnnotation(),
@@ -449,6 +464,12 @@ public sealed class PageSurface : Control
         annotation.Rect = rect;
         if (annotation is not MarkAnnotation) annotation.Color = DrawColor;
         annotation.LineWidth = DrawLineWidth;
+
+        if (annotation is SignatureAnnotation signature)
+        {
+            SignatureRequested?.Invoke(this, signature);
+            return;
+        }
 
         Document!.AddAnnotation(annotation);
         if (annotation is TextBoxAnnotation text) TextEditRequested?.Invoke(this, text);

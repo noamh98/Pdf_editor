@@ -1,5 +1,6 @@
 using System.Text.Json;
 using System.Text.Json.Serialization;
+using PdfEditor.Core.Annotations;
 using PdfEditor.Core.Files;
 
 namespace PdfEditor.Core.Storage;
@@ -54,9 +55,51 @@ public sealed record RecoveryManifest
         AtomicFileWriter.WriteAsync(path, JsonSerializer.SerializeToUtf8Bytes(this, Json), cancellationToken);
 }
 
+/// <summary>
+/// Identifies the bytes a recovery session was taken against, so a sidecar is not silently
+/// re-applied to a file that has been replaced since.
+/// </summary>
+/// <remarks>
+/// Length and last-write time rather than a content hash: a PDF can be hundreds of megabytes and
+/// this runs on every open. It detects replacement, which is what the offer needs to know; it is
+/// not a integrity check and is not relied on as one.
+/// </remarks>
+public static class SourceFingerprint
+{
+    public static string For(string path)
+    {
+        try
+        {
+            var info = new FileInfo(path);
+            if (!info.Exists) return "missing";
+            return $"{info.Length:x}-{info.LastWriteTimeUtc.Ticks:x}";
+        }
+        catch (Exception e) when (e is IOException or UnauthorizedAccessException)
+        {
+            return "unreadable";
+        }
+    }
+}
+
 /// <summary>Periodically persists unsaved work and offers it back after a crash.</summary>
 public interface IAutosaveService : IAsyncDisposable
 {
+    /// <summary>
+    /// Starts tracking an open document and returns the identifier its autosaves are filed under.
+    /// A session is owned by this process until it is discarded or the process dies.
+    /// </summary>
+    string BeginSession(string sourcePath, string sourceFingerprint);
+
+    /// <summary>
+    /// Writes the current unsaved annotations for a tracked session. Called on a timer and again
+    /// whenever the document is about to be left, so the sidecar never trails the editor by more
+    /// than one interval.
+    /// </summary>
+    Task SaveAsync(string sessionId, IReadOnlyList<Annotation> annotations, CancellationToken cancellationToken = default);
+
+    /// <summary>Reads back the annotations held for a session so they can be re-applied.</summary>
+    Task<IReadOnlyList<Annotation>> RestoreAsync(string sessionId, CancellationToken cancellationToken = default);
+
     /// <summary>Sessions found on start that can be offered to the user.</summary>
     Task<IReadOnlyList<RecoverySession>> FindRecoverableSessionsAsync(CancellationToken cancellationToken = default);
 

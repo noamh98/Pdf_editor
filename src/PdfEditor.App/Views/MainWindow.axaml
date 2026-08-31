@@ -103,7 +103,7 @@
 
               <Border Classes="group">
                 <StackPanel Spacing="4">
-                  <TextBlock Classes="sectionHeader" Text="צבע" />
+                  <TextBlock Classes="sectionHeader" Text="{x:Static loc:Strings.ColorLabel}" />
                   <ItemsControl ItemsSource="{x:Static vm:PropertiesViewModel.Swatches}">
                     <ItemsControl.ItemsPanel>
                       <ItemsPanelTemplate>
@@ -125,18 +125,21 @@
                 </StackPanel>
               </Border>
 
+              <Border Classes="group" IsVisible="{Binding SupportsLineWidth}">
+                <StackPanel Spacing="2">
+                  <TextBlock Classes="sectionHeader" Text="{x:Static loc:Strings.LineWidthLabel}" />
+                  <Slider Minimum="0.5" Maximum="16" TickFrequency="0.5" IsSnapToTickEnabled="True"
+                          Value="{Binding LineWidth, Mode=TwoWay}"
+                          AutomationProperties.Name="{x:Static loc:Strings.LineWidthLabel}" />
+                </StackPanel>
+              </Border>
+
               <Border Classes="group">
                 <StackPanel Spacing="2">
-                  <TextBlock Classes="sectionHeader" Text="עובי קו" IsVisible="{Binding SupportsLineWidth}" />
-                  <Slider Minimum="0.5" Maximum="16" TickFrequency="0.5" IsSnapToTickEnabled="True"
-                          IsVisible="{Binding SupportsLineWidth}"
-                          Value="{Binding LineWidth, Mode=TwoWay}"
-                          AutomationProperties.Name="עובי קו" />
-
-                  <TextBlock Classes="sectionHeader" Text="שקיפות" />
+                  <TextBlock Classes="sectionHeader" Text="{x:Static loc:Strings.OpacityLabel}" />
                   <Slider Minimum="0.1" Maximum="1.0" TickFrequency="0.05" IsSnapToTickEnabled="True"
                           Value="{Binding Opacity, Mode=TwoWay}"
-                          AutomationProperties.Name="שקיפות" />
+                          AutomationProperties.Name="{x:Static loc:Strings.OpacityLabel}" />
                 </StackPanel>
               </Border>
 
@@ -146,10 +149,44 @@
                   <TextBox AcceptsReturn="True" MinHeight="88" TextWrapping="Wrap"
                            Text="{Binding Text, Mode=TwoWay}"
                            AutomationProperties.Name="{x:Static loc:Strings.ToolTextBox}" />
-                  <TextBlock Classes="sectionHeader" Margin="0,6,0,0" Text="גודל גופן" />
+
+                  <Grid ColumnDefinitions="*,Auto" Margin="0,6,0,0">
+                    <TextBlock Grid.Column="0" Classes="sectionHeader" Margin="0"
+                               Text="{x:Static loc:Strings.FontSizeLabel}" />
+                    <!-- The number matters: a form is usually matched to a size, not eyeballed. -->
+                    <TextBlock Grid.Column="1" Classes="muted ltr" Margin="0"
+                               Text="{Binding FontSizeText}" />
+                  </Grid>
                   <Slider Minimum="8" Maximum="48" TickFrequency="1" IsSnapToTickEnabled="True"
                           Value="{Binding FontSize, Mode=TwoWay}"
-                          AutomationProperties.Name="גודל גופן" />
+                          AutomationProperties.Name="{x:Static loc:Strings.FontSizeLabel}" />
+
+                  <CheckBox IsChecked="{Binding Bold, Mode=TwoWay}"
+                            Content="{x:Static loc:Strings.BoldLabel}"
+                            AutomationProperties.Name="{x:Static loc:Strings.BoldLabel}" />
+
+                  <TextBlock Classes="sectionHeader" Margin="0,2,0,0"
+                             Text="{x:Static loc:Strings.AlignmentLabel}" />
+                  <!-- Named by where the line starts rather than by a side, because the annotation
+                       follows its own text direction: start is the right in Hebrew and the left in
+                       a Latin run. -->
+                  <StackPanel Orientation="Horizontal" Spacing="6">
+                    <RadioButton Classes="segment" GroupName="align" Click="OnAlignmentChosen" Tag="Start"
+                                 IsChecked="{Binding IsAlignStart, Mode=OneWay}"
+                                 Content="{x:Static loc:Strings.AlignStart}"
+                                 ToolTip.Tip="{x:Static loc:Strings.AlignStartHint}"
+                                 AutomationProperties.Name="{x:Static loc:Strings.AlignStartHint}" />
+                    <RadioButton Classes="segment" GroupName="align" Click="OnAlignmentChosen" Tag="Center"
+                                 IsChecked="{Binding IsAlignCenter, Mode=OneWay}"
+                                 Content="{x:Static loc:Strings.AlignCenter}"
+                                 ToolTip.Tip="{x:Static loc:Strings.AlignCenterHint}"
+                                 AutomationProperties.Name="{x:Static loc:Strings.AlignCenterHint}" />
+                    <RadioButton Classes="segment" GroupName="align" Click="OnAlignmentChosen" Tag="End"
+                                 IsChecked="{Binding IsAlignEnd, Mode=OneWay}"
+                                 Content="{x:Static loc:Strings.AlignEnd}"
+                                 ToolTip.Tip="{x:Static loc:Strings.AlignEndHint}"
+                                 AutomationProperties.Name="{x:Static loc:Strings.AlignEndHint}" />
+                  </StackPanel>
                 </StackPanel>
               </Border>
 
@@ -211,12 +248,17 @@
                   AutomationProperties.Name="{x:Static loc:Strings.SaveAs}">
             <Path Data="{x:Static vm:Icons.SaveAs}" Fill="{Binding $parent[Button].Foreground}" />
           </Button>
+          <!-- Export and print step aside at the narrowest width along with the document
+               operations. Both keep their shortcuts and both are in the overflow menu, so nothing
+               becomes unreachable — but at 680 the bar cannot hold them without clipping. -->
           <Button Classes="command" Command="{Binding ExportCommand}"
+                  IsVisible="{Binding ShowDocumentOpsInline}"
                   ToolTip.Tip="{x:Static loc:Strings.ExportFinalCopy}"
                   AutomationProperties.Name="{x:Static loc:Strings.ExportFinalCopy}">
             <Path Data="{x:Static vm:Icons.Export}" Fill="{Binding $parent[Button].Foreground}" />
           </Button>
           <Button Classes="command" Command="{Binding PrintCommand}"
+                  IsVisible="{Binding ShowDocumentOpsInline}"
                   ToolTip.Tip="Ctrl+P" AutomationProperties.Name="{x:Static loc:Strings.Print}">
             <Path Data="{x:Static vm:Icons.Print}" Fill="{Binding $parent[Button].Foreground}" />
           </Button>
@@ -265,6 +307,9 @@
             <Path Data="{x:Static vm:Icons.More}" Fill="{Binding $parent[Button].Foreground}" />
             <Button.Flyout>
               <MenuFlyout>
+                <MenuItem Header="{x:Static loc:Strings.Print}" Command="{Binding PrintCommand}" />
+                <MenuItem Header="{x:Static loc:Strings.ExportFinalCopy}" Command="{Binding ExportCommand}" />
+                <Separator />
                 <MenuItem Header="{x:Static loc:Strings.Merge}" Command="{Binding MergeCommand}" />
                 <MenuItem Header="{x:Static loc:Strings.Split}" Command="{Binding SplitCommand}" />
                 <MenuItem Header="{x:Static loc:Strings.PageOperations}" Command="{Binding ShowPageOperationsCommand}" />
@@ -404,6 +449,7 @@
                         Width="{Binding DisplayWidth}" Height="{Binding DisplayHeight}">
                   <ctl:PageSurface Page="{Binding}"
                                    FlowDirection="LeftToRight"
+                                   SignatureRequested="OnSignatureRequested"
                                    Document="{Binding $parent[Window].((vm:MainWindowViewModel)DataContext).Document}"
                                    ActiveTool="{Binding $parent[Window].((vm:MainWindowViewModel)DataContext).Toolbox.ActiveTool}" />
                 </Border>
@@ -596,6 +642,86 @@
                     Content="{x:Static loc:Strings.Cancel}" />
           </StackPanel>
         </StackPanel>
+      </Border>
+    </Border>
+
+    <!-- The signature library. Filling a form usually ends in signing it, so this is reached by
+         placing the signature tool rather than from settings. Nothing is added to the page until a
+         signature is chosen, so cancelling leaves the document untouched. -->
+    <Border Grid.Row="0" Grid.RowSpan="5" Background="{DynamicResource ScrimBrush}"
+            IsVisible="{Binding IsSignaturePickerOpen}">
+      <Border Classes="card" MaxWidth="560" MaxHeight="620" Margin="24"
+              VerticalAlignment="Center" HorizontalAlignment="Center"
+              DataContext="{Binding SignaturePicker}" x:DataType="vm:SignaturePickerViewModel">
+        <DockPanel>
+          <Grid DockPanel.Dock="Top" ColumnDefinitions="*,Auto" Margin="0,0,0,12">
+            <TextBlock Grid.Column="0" Classes="title" Text="{x:Static loc:Strings.SignatureLibrary}" />
+            <Button Grid.Column="1" Classes="command" Padding="6"
+                    Command="{Binding $parent[Window].((vm:MainWindowViewModel)DataContext).CancelSignatureCommand}"
+                    ToolTip.Tip="{x:Static loc:Strings.Close}"
+                    AutomationProperties.Name="{x:Static loc:Strings.Close}">
+              <Path Data="{x:Static vm:Icons.Close}" Fill="{Binding $parent[Button].Foreground}" />
+            </Button>
+          </Grid>
+
+          <StackPanel DockPanel.Dock="Bottom" Spacing="10" Margin="0,14,0,0">
+            <TextBlock Classes="muted" TextWrapping="Wrap"
+                       Text="{x:Static loc:Strings.SignatureDisclaimer}" />
+            <TextBlock Classes="muted" TextWrapping="Wrap"
+                       Text="{x:Static loc:Strings.SignatureStorageNotice}" />
+            <StackPanel Orientation="Horizontal" Spacing="8" HorizontalAlignment="Left">
+              <Button Classes="primary"
+                      Command="{Binding $parent[Window].((vm:MainWindowViewModel)DataContext).ConfirmSignatureCommand}"
+                      Content="{x:Static loc:Strings.UseSignature}" />
+              <Button Classes="secondary"
+                      Command="{Binding $parent[Window].((vm:MainWindowViewModel)DataContext).CancelSignatureCommand}"
+                      Content="{x:Static loc:Strings.Cancel}" />
+            </StackPanel>
+          </StackPanel>
+
+          <StackPanel DockPanel.Dock="Top" Spacing="8" Margin="0,0,0,10">
+            <StackPanel Orientation="Horizontal" Spacing="8">
+              <Button Classes="secondary" Command="{Binding ImportCommand}"
+                      Content="{x:Static loc:Strings.ImportSignature}" />
+              <Button Classes="secondary danger" Command="{Binding DeleteCommand}"
+                      Content="{x:Static loc:Strings.Delete}" />
+            </StackPanel>
+            <CheckBox IsChecked="{Binding RemoveWhiteBackground, Mode=TwoWay}"
+                      Content="{x:Static loc:Strings.RemoveWhiteBackground}"
+                      ToolTip.Tip="{x:Static loc:Strings.RemoveWhiteBackground}" />
+            <TextBlock Classes="error" IsVisible="{Binding Error, Converter={x:Static ObjectConverters.IsNotNull}}"
+                       TextWrapping="Wrap" Text="{Binding Error}" />
+          </StackPanel>
+
+          <TextBlock IsVisible="{Binding IsEmpty}" Classes="muted" TextWrapping="Wrap"
+                     VerticalAlignment="Center" TextAlignment="Center"
+                     Text="{x:Static loc:Strings.NoSignaturesYet}" />
+
+          <ScrollViewer IsVisible="{Binding !IsEmpty}" HorizontalScrollBarVisibility="Disabled">
+            <ListBox Classes="signatures" ItemsSource="{Binding Signatures}"
+                     SelectedItem="{Binding Selected, Mode=TwoWay}"
+                     Background="Transparent" BorderThickness="0"
+                     AutomationProperties.Name="{x:Static loc:Strings.Signatures}">
+              <ListBox.ItemTemplate>
+                <DataTemplate x:DataType="vm:SignatureItemViewModel">
+                  <Grid ColumnDefinitions="Auto,*" Height="64">
+                    <!-- The preview is a document image: pinned left to right so a right to left
+                         flow does not mirror it. -->
+                    <Border Grid.Column="0" Classes="signaturePreview" Width="150" Margin="0,0,12,0"
+                            FlowDirection="LeftToRight">
+                      <Image Source="{Binding Preview}" Stretch="Uniform" Margin="6" />
+                    </Border>
+                    <StackPanel Grid.Column="1" VerticalAlignment="Center" Spacing="2">
+                      <TextBlock Text="{Binding DisplayName}" />
+                      <TextBlock Classes="muted ltr" HorizontalAlignment="Right"
+                                 Text="{Binding CreatedText}" />
+                    </StackPanel>
+                  </Grid>
+                </DataTemplate>
+              </ListBox.ItemTemplate>
+            </ListBox>
+          </ScrollViewer>
+        </DockPanel>
       </Border>
     </Border>
 
