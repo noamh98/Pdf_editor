@@ -144,32 +144,38 @@ public class SafeFileNameMakeUniqueTests
     [Fact]
     public void AppendsTwoWhenDesiredPathExists()
     {
+        // The expected directory is derived through Path.GetDirectoryName, the same call
+        // MakeUnique itself makes, rather than assumed as a literal: on Windows that call
+        // normalises "/dir" to "\dir", which a hardcoded "/dir" in the expectation would miss.
+        var dir = Path.GetDirectoryName("/dir/report.pdf")!;
         var existing = new HashSet<string> { "/dir/report.pdf" };
         var result = SafeFileName.MakeUnique("/dir/report.pdf", existing.Contains);
 
-        Assert.Equal(Path.Combine("/dir", "report (2).pdf"), result);
+        Assert.Equal(Path.Combine(dir, "report (2).pdf"), result);
     }
 
     [Fact]
     public void KeepsIncrementingUntilAFreeNameIsFound()
     {
+        var dir = Path.GetDirectoryName("/dir/report.pdf")!;
         var existing = new HashSet<string>
         {
             "/dir/report.pdf",
-            Path.Combine("/dir", "report (2).pdf"),
+            Path.Combine(dir, "report (2).pdf"),
         };
         var result = SafeFileName.MakeUnique("/dir/report.pdf", existing.Contains);
 
-        Assert.Equal(Path.Combine("/dir", "report (3).pdf"), result);
+        Assert.Equal(Path.Combine(dir, "report (3).pdf"), result);
     }
 
     [Fact]
     public void WorksForPathsWithoutAnExtension()
     {
+        var dir = Path.GetDirectoryName("/dir/report")!;
         var existing = new HashSet<string> { "/dir/report" };
         var result = SafeFileName.MakeUnique("/dir/report", existing.Contains);
 
-        Assert.Equal(Path.Combine("/dir", "report (2)"), result);
+        Assert.Equal(Path.Combine(dir, "report (2)"), result);
     }
 
     [Fact]

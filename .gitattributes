@@ -1,0 +1,12 @@
+# Line endings are normalised to LF for every text file this repo tracks. Without this, a Windows
+# checkout applies core.autocrlf and converts LF to CRLF on the fly, which then conflicts with
+# .editorconfig's end_of_line = lf and fails `dotnet format --verify-no-changes` only on the
+# Windows CI runner - exactly the kind of platform-specific failure that is invisible from Linux.
+* text=auto eol=lf
+
+*.png binary
+*.ico binary
+*.ttf binary
+*.traineddata binary
+*.dll binary
+*.pdf binary
