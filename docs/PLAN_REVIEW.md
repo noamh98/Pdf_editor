@@ -226,3 +226,26 @@ entirely unexercised:
   reuse. This is a real cost on a large document and is already implicitly covered by
   `docs/KNOWN_LIMITATIONS.md`'s performance-budget entries, which state plainly that nothing has been
   measured.
+
+---
+
+## Third review pass
+
+Found while regenerating the screenshots for this handoff, to confirm the second pass's fixes had not
+changed the visual output — not by design, and not by a test. The same lesson the second pass ended
+on applies again: a resource lookup returning the right answer is not evidence the pixel is right.
+
+| # | Severity | Finding | Evidence | Status |
+| --- | --- | --- | --- | --- |
+| T1 | Major | The dark theme renders as light for the entire window once the properties panel is populated with a selection | `tools/PdfEditor.Shots` captures show a fully light chrome — command bar, side panels, board — the instant any annotation is selected, reproduced across five independently built harnesses and narrowed to the presence of a `Slider` in the visual tree. `Application.Current.TryGetResource` proves the resource dictionaries resolve the correct dark colour at the moment of capture, so the defect is in stale `DynamicResource` binding invalidation on the existing tree, not in the data | **Not fixed.** Documented in detail in `docs/KNOWN_LIMITATIONS.md`'s new top section and in `docs/HANDOFF.md`, including everything ruled out (timing, forced invalidation, annotation kind, window-level vs. app-level `RequestedThemeVariant`) and everything still unknown |
+
+### What this pass could not settle
+
+Whether T1 is a real defect in the shipped application or an artifact of the headless test tooling.
+Every reproduction used `AppBuilder...SetupWithoutStarting()`, which never runs
+`PdfEditorApp.OnFrameworkInitializationCompleted` — the only path a real desktop launch takes, and
+where the saved theme is actually applied — and renders through a software Skia compositor rather
+than Avalonia's real platform backend. Settling this needs a Windows machine to run the actual
+executable on, which this project does not have. This is exactly the kind of claim the first pass's
+closing recommendation asked for: name the test, the script or the manual step that verifies it, or
+say plainly that nothing does yet. Nothing does yet, for this one.

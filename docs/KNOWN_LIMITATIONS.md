@@ -2,6 +2,50 @@
 
 Everything here is real and current. Nothing is listed as done that has not been verified.
 
+## Confirmed, not fixed: dark theme renders wrong once a selection has controls on screen
+
+Found while re-verifying the screenshots for this handoff, not by a test — the same way the earlier
+mirrored-canvas and frozen-palette defects were found, and the same lesson applies: look at the
+rendered output, don't trust that a resource lookup passing means the pixel is right.
+
+**What was observed.** `tools/PdfEditor.Shots`, rendering headlessly with `UseHeadlessDrawing: false`
+and `UseSkia()`, produces a shell that stays correctly dark for the empty state, the start screen and
+the whole window right up until an annotation is selected. The instant the properties panel actually
+populates with controls — confirmed down to a single `Slider`, tried with a `TextBoxAnnotation` and
+separately with a `MarkAnnotation`, at every window width, with or without a document selection — the
+**entire window** renders as if it were light: white command bar, white side panels, white board,
+correct only inside a modal dialog drawn on top. This reproduced on every attempt (dozens, across
+five independently constructed test harnesses), including after forcing a full visual-tree
+invalidation and a five-times-longer settle delay before capture, which rules out a timing race.
+
+**What was ruled out.** `Application.Current.TryGetResource("PanelColor", ..., ActualThemeVariant)`
+returns the correct dark colour at the exact moment the wrong frame is captured — the resource
+dictionaries and the theme-variant state are provably correct. The defect is in how the already-
+resolved `DynamicResource` bindings on the existing visual tree get (or don't get) invalidated once a
+`Slider`-bearing template first materialises, not in what the resources contain. Also ruled out:
+timing/settle delays, which annotation kind is selected, the window's own `RequestedThemeVariant` set
+directly rather than only the `Application`'s, and forcing `InvalidateVisual()` on every descendant
+before capture.
+
+**What is not known.** Whether this affects the real, shipped Windows build. Every reproduction used
+`AppBuilder...SetupWithoutStarting()`, which — in both the screenshot tool and the automated test
+suite — never runs `PdfEditorApp.OnFrameworkInitializationCompleted`, the one place a normal desktop
+launch applies the saved theme and the only code path a real user's `IClassicDesktopStyleApplicationLifetime`
+run goes through. The real application also renders through Avalonia's platform Skia backend, not the
+headless software compositor these tools use. Both are plausible reasons this could be a test-harness
+artifact rather than a product defect, and both are exactly the kind of claim this project does not
+make without checking. It has not been checked, because doing so needs a Windows machine this project
+does not have.
+
+**Consequence for this handoff.** `docs/images/shell-wide-dark.png`, `shell-medium-dark.png`,
+`shell-compact-dark.png` and `signatures-dark.png` all show a populated properties panel and are
+affected — do not read them as proof the dark theme works with a selection active. `shell-wide-light`,
+every `*-light` image, `start-dark.png`, `shell-minimum-light.png` and the dialog interiors are not
+affected and can be trusted. **Before relying on the dark theme for anything user-facing, reproduce
+this on a real Windows build first** — if it does not reproduce there, this note can be deleted; if it
+does, the fix almost certainly starts at `Slider`'s control theme or at what
+`OnFrameworkInitializationCompleted` sets up that the headless path skips.
+
 ## Not verified yet
 
 These are the honest gaps in verification, not features that are known broken.

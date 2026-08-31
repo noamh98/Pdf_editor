@@ -47,6 +47,27 @@ is now created plain and an empty field gets a dashed guide that exists only on 
 swatch also did nothing visible for text, because it set a stroke colour a text box never uses; for
 a text box it is now the ink of the glyphs.
 
+## A defect found but not fixed: dark theme breaks once a selection has controls
+
+While re-verifying the screenshots for this handoff (regenerated with `tools/PdfEditor.Shots`), the
+dark-theme captures that include a populated properties panel — select any annotation, and the
+opacity slider alone is enough — render the **entire window** as if it were light, everywhere except
+inside a modal dialog. `Application.Current.TryGetResource` proves the resource system still resolves
+the correct dark colour at that exact moment, so this is a stale-rendering/invalidation defect, not a
+data one. Reproduced deterministically across five independently built test harnesses; ruled out
+timing, forced full-tree invalidation, which annotation kind, and setting the window's own
+`RequestedThemeVariant` directly. Full evidence and reproduction steps are in
+`docs/KNOWN_LIMITATIONS.md`'s new top section — read it before touching `Themes/Controls.axaml` or
+the `Slider` styling.
+
+**Not settled: whether this is real or a test-harness artifact.** Every reproduction went through
+`AppBuilder...SetupWithoutStarting()`, which skips `PdfEditorApp.OnFrameworkInitializationCompleted` —
+the only code path a real desktop launch runs, and where the saved theme is actually applied. The real
+app also renders through Avalonia's platform backend, not the headless software compositor used here.
+This needs a Windows build to settle either way; nothing in this environment can. Until then, treat
+`shell-wide-dark.png`, `shell-medium-dark.png`, `shell-compact-dark.png` and `signatures-dark.png` as
+unverified for the dark theme specifically, not as proof it works.
+
 ## What the fourth session changed
 
 A second, independently-run design review pass found four defects the first pass had not looked

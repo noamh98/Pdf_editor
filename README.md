@@ -26,6 +26,13 @@ editor draws around the selected field. That guide never reaches the PDF.
 | --- | --- |
 | ![The editor in the light theme](docs/images/shell-wide-light.png) | ![The editor in the dark theme](docs/images/shell-wide-dark.png) |
 
+> The dark-theme image above has a known, confirmed rendering defect: the properties panel shown
+> selected here — any selection does it — makes the whole window capture as light in this project's
+> headless screenshot tool, even though the underlying theme resources resolve correctly. Whether
+> this also happens in the real, running Windows application is unverified; see the first entry in
+> [`docs/KNOWN_LIMITATIONS.md`](docs/KNOWN_LIMITATIONS.md) for the full evidence before trusting this
+> image, or the dark theme with a selection active, at face value.
+
 At a narrow window the shell rearranges itself: the thumbnail rail closes, the side panels float
 over the document instead of squeezing it, the search field takes a row of its own and the document
 operations move into an overflow menu.
