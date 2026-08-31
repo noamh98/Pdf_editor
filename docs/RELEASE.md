@@ -37,10 +37,19 @@ Nothing here is optional. A box that cannot be ticked is a reason not to release
 - [ ] The printing protocol in `docs/PRINTING.md` has been run, at least section A
 - [ ] **The package has been started on a clean Windows machine** with no .NET, no Visual Studio and
       no developer tools, and it opened a PDF
-- [ ] **The native dependency question is settled**: confirm whether `pdfium.dll`, `libSkiaSharp.dll`,
-      `tesseract50.dll` and `leptonica-1.82.0.dll` need the Visual C++ redistributable on a bare
-      Windows install. If they do, ship the runtime DLLs beside the executable. Until this is
-      answered, "self-contained" is not proven
+- [ ] **The Visual C++ redistributable gap is closed before release.** Settled by reading the PE
+      import tables of every native DLL in a built package: `pdfium.dll`, `libSkiaSharp.dll` and
+      `libHarfBuzzSharp.dll` import only OS-provided DLLs and need nothing extra. `tesseract50.dll`
+      and `leptonica-1.82.0.dll` import `MSVCP140.dll`, `VCRUNTIME140.dll` and (tesseract only)
+      `VCRUNTIME140_1.dll` — the Visual C++ 2015-2022 runtime — which are **not** part of the
+      package and are not guaranteed present on a bare Windows 10/11 install. Concretely: OCR will
+      fail on a clean machine that has never installed the VC++ runtime, contradicting "no first-run
+      download." This project has no Windows environment to source or test the fix, so it is not
+      done here; before release, either bundle `MSVCP140.dll`, `VCRUNTIME140.dll` and
+      `VCRUNTIME140_1.dll` beside `tesseract50.dll` (Microsoft permits redistributing these specific
+      files under the Visual C++ Redistributable's own licence terms) and confirm OCR still runs
+      after removing the runtime from a clean test machine, or document a one-time redistributable
+      install as a prerequisite for OCR specifically — the rest of the application does not need it
 
 ### Building the artifact
 

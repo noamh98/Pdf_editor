@@ -186,3 +186,43 @@ apart, and nothing in the plan's definition of done requires them to be reconcil
 **The one change that would have prevented the most damage:** require every claim in the
 documentation to name the test, the script, or the manual step that verifies it — and treat a claim
 with nothing behind it as a defect, at the same severity as a failing test.
+
+---
+
+## Second review pass
+
+Run independently, in a fresh session, against the state left by the review above. This pass found
+four further defects, all confirmed against the running code rather than inferred from reading it,
+and all four have since been fixed. It is a supplement to the review above, not a replacement.
+
+| # | Severity | Finding | Evidence | Status |
+| --- | --- | --- | --- | --- |
+| S1 | Critical | Rendering a page a second time after it had already finished successfully threw `ObjectDisposedException` | `PageViewModel.EnsureRenderedAsync` published its cancellation source into `_pending`, then disposed it unconditionally via `using` on the way out without clearing the field. The next call that did not short-circuit on `IsSharp` — any zoom change — exchanged out that disposed source and called `.Cancel()` on it. Reproduced with a test that opens a document, renders a page, changes its scale, and renders again; confirmed the fix by reverting it and watching the same test fail | Fixed. The source is now only disposed via a `CompareExchange` that also clears the field, and only when a later call has not already superseded it. A regression test covers the exact sequence |
+| S2 | Critical | The published package redistributed Microsoft's Segoe WP fonts under a licence this project does not hold | The PDFsharp NuGet package's `lib/` folder ships `PdfSharp.WPFonts.dll` alongside `PdfSharp.dll`; `strings` on the built package's copy of it shows six embedded Segoe WP font files and "© 2010 Microsoft Corporation... You may use this font as permitted by the EULA for the product in which this font is included" — a EULA this project is not a party to | Fixed. `build/package.sh` and `build/package.ps1` delete the file from the published output and refuse to produce a package if it is still present. Confirmed safe to remove — and confirmed that most of its seven sibling assemblies are *not* safe to remove — by deleting each from a built test output in turn and running the full suite; only `PdfSharp.WPFonts.dll` could be removed alone without a project depending on `PdfSharp.System.dll`'s logger failing at `PdfDocument`'s constructor |
+| S3 | Major | A saved annotation's opacity could be applied twice by a fully compliant PDF viewer | `AnnotationRenderer` bakes the configured opacity into every colour it draws, and `AnnotationWriter` also wrote that same value into the annotation dictionary's `/CA`. Per the PDF specification, `/CA` tells a viewer to additionally composite the whole appearance at that alpha, so a viewer that implements it fully would render at roughly opacity squared | Fixed by no longer writing `/CA`, verified by a test asserting the key is absent. **Not independently verified as a visible difference**: PDFium's own basic annotation-rendering flag, the only renderer available in this environment and the one behind every page preview and thumbnail in the application, does not implement `/CA` compositing at all, so the bug could not be observed by rendering before or after the fix. The correctness argument rests on the PDF specification, not on a passing pixel comparison |
+| S4 | Minor | This document did not exist under this name when the second pass started | The independent-reviewer agent that produced it wrote to `docs/PLAN_REVIEW.md` in a working tree that a separate, concurrent session had already fast-forwarded past — merging its own first-pass review, autosave, the signature interface, and the flattening fix now recorded above as already resolved. The two reviews were reconciled by hand rather than one overwriting the other | Not a code defect. Recorded so a future reader understands why this file has two passes with different authors and different dates rather than one continuous document |
+
+### What this pass did not find wrong
+
+The first pass's most serious findings — no autosave implementation, the signature library with no
+interface, flattening deleting annotations it could not redraw, the font's copyright notice naming
+nobody who appears in any notice — were already fixed in the commits this pass started from, and
+this pass re-checked each one against the current code rather than trusting the commit messages:
+`FileSystemAutosaveService` exists and is wired up, `SignaturePickerViewModel` gives the library an
+interface, `AnnotationFlattener` now removes only the annotations it actually redrew or burned in,
+and `THIRD_PARTY_NOTICES.md` names empira for PDFsharp rather than the Assistant font's authors.
+
+### Left open
+
+Two things this pass noticed but did not chase, for lack of time rather than lack of concern, and
+neither is new — both were already implied by the first pass's finding that Windows-only features are
+entirely unexercised:
+
+- Printing decodes each page into memory as a full-resolution raster for the whole job at once;
+  nothing bounds how many pages are held simultaneously. On a very long document this could exhaust
+  memory before it exhausts the printer. Untested, because printing itself is untested end to end.
+- Every render, thumbnail and blank-page check re-parses the source PDF from bytes rather than
+  reusing an open document handle, because PDFtoImage 4.1's public API offers no persistent handle to
+  reuse. This is a real cost on a large document and is already implicitly covered by
+  `docs/KNOWN_LIMITATIONS.md`'s performance-budget entries, which state plainly that nothing has been
+  measured.
