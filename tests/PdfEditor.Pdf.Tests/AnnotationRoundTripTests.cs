@@ -601,4 +601,39 @@ public class AnnotationRoundTripTests
         ap.Elements["/N"] = form.Reference!;
         return ap;
     }
+
+    [Fact]
+    public async Task ASavedAnnotationHasNoCaEntryEvenAtPartialOpacity()
+    {
+        // AnnotationRenderer bakes the configured opacity into every colour it draws, so the
+        // appearance stream is already at the right opacity. Writing that same value into the
+        // annotation dictionary's /CA on top would, per the PDF specification, tell a viewer that
+        // implements full annotation compositing to composite the already-dimmed appearance a
+        // second time - roughly opacity squared. This can't be observed through this project's own
+        // renderer: PDFium's basic annotation-rendering flag (used for every page preview and
+        // thumbnail here) does not implement /CA compositing at all, which is exactly why the
+        // structural absence of the key has to be asserted directly rather than inferred from a
+        // pixel sample that this pipeline cannot make sensitive to it.
+        using var work = new TempWorkspace();
+        var source = work.Write("source.pdf", PdfFixtures.TextDocument(1));
+        var target = work.File("half-opacity.pdf");
+
+        var shape = new ShapeAnnotation(AnnotationKind.Rectangle)
+        {
+            PageIndex = 0,
+            Rect = new PdfRect(60, 700, 120, 60),
+            FillColor = AnnotationColor.Red,
+            Color = AnnotationColor.Red,
+            Opacity = 0.5
+        };
+
+        await using (var doc = await Loader.OpenAsync(source, Ct))
+            await Writer.SaveAsync(doc, new SaveRequest(target, SaveMode.Editable, [shape]), null, Ct);
+
+        using var check = PdfReader.Open(target, PdfDocumentOpenMode.Import);
+        var dict = check.Pages[0].Elements.GetArray("/Annots")!.Elements.GetDictionary(0)!;
+
+        Assert.False(dict.Elements.ContainsKey("/CA"),
+            "/CA would double-apply opacity on top of the already-dimmed appearance stream");
+    }
 }
