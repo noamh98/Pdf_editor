@@ -42,7 +42,7 @@ These are the honest gaps in verification, not features that are known broken.
 | L19 | Recovery files are not encrypted | The sidecar holds the text you typed, in the clear, under your local application data. It is deleted on save, on close and on any deliberate exit, but while it exists it is readable by anything running as you. `docs/PRIVACY.md` states this and how to avoid it |
 | L20 | Assets are not committed | `build/fetch-assets` must be run once after cloning. A build without it produces an application that cannot embed text or run OCR |
 | L21 | The asset download is not checksum-verified | Files are fetched over HTTPS from pinned URLs, but no publisher signature or hash manifest is checked |
-| L22 | No interface for the signature library | The store, DPAPI protection, auto-crop and transparency are implemented and tested, but nothing in the window creates, imports or picks a signature. The signature tool places an annotation with no image behind it |
+| L22 | A signature can be imported but not drawn | The library is reachable now: placing the signature tool opens it, and a signature can be imported from a PNG or JPEG, picked, and deleted. Drawing one freehand is not implemented, although `Strings.DrawSignature` anticipates it. The freehand ink tool is the workaround |
 | L23 | No interface for reordering pages | `PdfDocumentWriter` applies a reorder and it is covered by tests; the page operations dialog offers rotate, delete and extract only |
 | L24 | Splitting is one file per page | The engine supports range-based splitting; the interface does not expose it yet |
 | L25 | Merging cannot reorder the sources | Files are merged in the order the picker returns them. Drag-to-reorder before merging is not implemented |

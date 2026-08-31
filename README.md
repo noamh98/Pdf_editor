@@ -105,12 +105,16 @@ Rotating, deleting and extracting pages happens in one dialog, and always writes
   outside any application's control, and the interface says so.
 
 **Signatures**
-- The signature store is implemented: an imported image is auto-cropped, given a transparent
-  background, and kept per Windows user under DPAPI protection.
-- **There is no interface for it yet.** The signature tool places a signature annotation, but
-  drawing one, importing one and choosing between saved signatures are not wired up.
-- When they are, the interface will state plainly that this is a graphical signature and **not** a
-  verified digital signature — the wording is already in the string catalogue.
+- Placing the signature tool opens the library: import a signature from a PNG or JPEG, pick one to
+  place, or delete one for good.
+- An imported image is auto-cropped, given a transparent background, and kept per Windows user
+  under DPAPI protection. "Remove white background" is on by default, because a signature scanned
+  from paper would otherwise stamp a white box onto the page.
+- Nothing is added to the page until a signature is chosen, so cancelling leaves the document
+  untouched, and the placed rectangle takes the image's proportions rather than stretching it.
+- The dialog states plainly that this is a graphical signature and **not** a verified digital
+  signature.
+- Drawing a signature freehand is not implemented; the ink tool is the workaround.
 
 ## System requirements
 
@@ -151,14 +155,19 @@ build/package.sh               # portable folder + zip + SHA256SUMS.txt under ar
 build/test.sh
 ```
 
-364 tests across four projects, all passing at the current commit:
+428 tests across four projects, all passing at the current commit:
 
 | Project | Tests | Covers |
 | --- | --- | --- |
-| `PdfEditor.Core.Tests` | 155 | Page range parsing, the bidirectional algorithm, undo/redo, print sequencing, safe paths, atomic writes |
-| `PdfEditor.Pdf.Tests` | 61 | Open, render, annotate, save, reopen, flatten, merge, split, reorder, rotate — against real PDFs |
-| `PdfEditor.Ocr.Tests` | 82 | OCR geometry, Hebrew normalisation, the cache, the signature library, temporary file cleanup |
-| `PdfEditor.App.Tests` | 66 | The window itself, headless: right-to-left layout, responsive breakpoints, shortcuts, page operations, workflows |
+| `PdfEditor.Core.Tests` | 177 | Page range parsing, the bidirectional algorithm and its UAX#9 conformance, undo/redo, print sequencing, safe paths, atomic writes |
+| `PdfEditor.Pdf.Tests` | 83 | Open, render, annotate, save, reopen, flatten, merge, split, reorder, rotate, and the recovery sidecar — against real PDFs |
+| `PdfEditor.Ocr.Tests` | 82 | OCR geometry, Hebrew normalisation, the cache, the signature store, temporary file cleanup |
+| `PdfEditor.App.Tests` | 86 | The window itself, headless: right-to-left layout, responsive breakpoints, shortcuts, page operations, form filling, signatures, and both unsaved-work paths |
+
+One caveat worth stating: the headless UI suite fails intermittently in a Linux container — roughly
+one run in sixteen, on a random test, always `PlatformNotSupportedException` at
+`Dispatcher.PushFrame`. It was measured against an earlier commit and reproduces there identically,
+so it is the headless test host rather than the product. Re-running clears it.
 
 Tests that must not change a source file hash it before and after and assert it is untouched.
 `docs/TESTING.md` describes the strategy, the synthetic corpus, and what is covered by a manual
@@ -199,8 +208,8 @@ important entries:
 - **Performance budgets are targets, not measurements.**
 - Annotations created by other applications are preserved exactly but are shown in the editor as a
   labelled placeholder rather than with their true appearance.
-- The signature library and page reordering have no interface yet, although both are implemented
-  and tested underneath.
+- Page reordering has no interface yet, although it is implemented and tested underneath. A
+  signature can be imported and placed, but not drawn freehand.
 - Password-protected documents are opened read-only and reported as protected.
 - The executable is not code-signed.
 

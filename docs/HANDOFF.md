@@ -87,8 +87,9 @@ a cache. `Platform` holds the Windows-only pieces: printing and DPAPI-protected 
 3. **The Visual C++ redistributable question** — whether PDFium, Skia and Tesseract need it on a
    bare Windows install is unverified and must be settled before any release.
 4. **A physical print test** — the forced-duplex sequence has never reached a printer.
-5. **No interface for the signature library or for reordering pages** — both are implemented and
-   tested underneath, and neither is reachable from the window.
+5. **No interface for reordering pages** — it is implemented and tested underneath and is not
+   reachable from the window. The signature library now is: placing the tool opens it, and a
+   signature can be imported, picked and deleted. Drawing one freehand is still not implemented.
 
 ## How to build and test
 
