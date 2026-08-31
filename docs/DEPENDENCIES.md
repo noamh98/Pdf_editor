@@ -11,7 +11,7 @@ trial-limited or subscription-based.
 
 | Package | Version | Purpose | Licence | Source | In the package |
 | --- | --- | --- | --- | --- | --- |
-| PDFsharp | 6.2.4 | PDF object model: read, write, annotations, page import, content streams | MIT | github.com/empira/PDFsharp | Managed DLL |
+| PDFsharp | 6.2.4 | PDF object model: read, write, annotations, page import, content streams | MIT | github.com/empira/PDFsharp | Managed DLL — see note below |
 | PDFtoImage | 4.1.1 | Managed wrapper that rasterises pages through PDFium | MIT | github.com/sungaila/PDFtoImage | Managed DLL |
 | bblanchon.PDFium.Win32 | via PDFtoImage | PDFium native rasteriser for Windows | Apache-2.0 packaging; PDFium itself BSD-3-Clause | github.com/bblanchon/pdfium-binaries | `pdfium.dll` |
 | bblanchon.PDFium.Linux | via PDFtoImage | Same, for the Linux development and CI machines | Apache-2.0 packaging; PDFium BSD-3-Clause | as above | not shipped to users |
@@ -24,6 +24,27 @@ trial-limited or subscription-based.
 | System.Drawing.Common | 8.0.10 | `System.Drawing.Printing`, used only for the Windows print path | MIT | dotnet/runtime | Managed DLL |
 | System.Security.Cryptography.ProtectedData | 8.0.0 | DPAPI protection for stored signatures on Windows | MIT | dotnet/runtime | Managed DLL |
 | .NET runtime | 8.0 | Self-contained runtime, so no framework install is required | MIT | dotnet/runtime | Runtime DLLs |
+
+### A note on what PDFsharp actually ships
+
+The PDFsharp NuGet package's `lib/` folder contains PdfSharp.dll alongside seven companion
+assemblies — BarCodes, Charting, Cryptography, Quality, Shared, Snippets, System and WPFonts — none
+of which this application's own source code references. Most of them turned out not to be optional:
+PdfSharp.dll calls into several internally at runtime (confirmed by removing PdfSharp.System.dll and
+watching `PdfDocument`'s constructor fail to resolve its logger), so a source-level grep for unused
+namespaces is not sufficient evidence that a file is safe to drop.
+
+One of them is not optional in the licensing sense either way: **PdfSharp.WPFonts.dll embeds six of
+Microsoft's Segoe WP font files under a Microsoft EULA** that permits their use only "as permitted by
+the EULA for the product in which this font is included" — a licence this project does not hold and
+cannot grant onward. It shipped in every build until this was found by an independent design review
+(`docs/PLAN_REVIEW.md`) that read the file's embedded strings.
+
+`build/package.sh` and `build/package.ps1` now delete `PdfSharp.WPFonts.dll` from the published
+output — and refuse to produce a package if it is still present — while leaving every other companion
+assembly alone. That the application keeps working with only this one file removed was verified by
+deleting it from the test output and running the full suite (430 tests, all four projects) rather
+than assumed from its name.
 
 ## Assets fetched at build time
 

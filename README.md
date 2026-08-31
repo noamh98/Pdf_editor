@@ -155,14 +155,14 @@ build/package.sh               # portable folder + zip + SHA256SUMS.txt under ar
 build/test.sh
 ```
 
-428 tests across four projects, all passing at the current commit:
+430 tests across four projects, all passing at the current commit:
 
 | Project | Tests | Covers |
 | --- | --- | --- |
 | `PdfEditor.Core.Tests` | 177 | Page range parsing, the bidirectional algorithm and its UAX#9 conformance, undo/redo, print sequencing, safe paths, atomic writes |
-| `PdfEditor.Pdf.Tests` | 83 | Open, render, annotate, save, reopen, flatten, merge, split, reorder, rotate, and the recovery sidecar — against real PDFs |
+| `PdfEditor.Pdf.Tests` | 84 | Open, render, annotate, save, reopen, flatten, merge, split, reorder, rotate, and the recovery sidecar — against real PDFs |
 | `PdfEditor.Ocr.Tests` | 82 | OCR geometry, Hebrew normalisation, the cache, the signature store, temporary file cleanup |
-| `PdfEditor.App.Tests` | 86 | The window itself, headless: right-to-left layout, responsive breakpoints, shortcuts, page operations, form filling, signatures, and both unsaved-work paths |
+| `PdfEditor.App.Tests` | 87 | The window itself, headless: right-to-left layout, responsive breakpoints, shortcuts, page operations, form filling, signatures, and both unsaved-work paths |
 
 
 Tests that must not change a source file hash it before and after and assert it is untouched.

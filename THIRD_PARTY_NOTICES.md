@@ -11,6 +11,11 @@ Nothing here is modified by this project except where a NOTICE section says othe
 
 Copyright (c) 2005-2024 empira Software GmbH, Troisdorf (Cologne Area), Germany
 
+NOTICE: the upstream NuGet package also contains `PdfSharp.WPFonts.dll`, which embeds Microsoft's
+Segoe WP fonts under a separate Microsoft EULA this project has no licence to redistribute. That file
+is removed from every package this project produces (`docs/DEPENDENCIES.md` has the detail); it is
+listed here only because it is present in the dependency this project does use, not because it ships.
+
 ## PDFtoImage — MIT License
 
 Copyright (c) 2021 David Sungaila

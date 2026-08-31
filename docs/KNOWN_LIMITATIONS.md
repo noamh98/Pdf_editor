@@ -8,12 +8,12 @@ These are the honest gaps in verification, not features that are known broken.
 
 | # | What | Why it is not verified |
 | --- | --- | --- |
-| V1 | The application has never been run on Windows | It was developed and tested on Linux. The whole solution builds, all 364 tests pass, and the Windows package is produced by cross-publishing, but no one has double-clicked the executable |
+| V1 | The application has never been run on Windows | It was developed and tested on Linux. The whole solution builds, all 430 tests pass, and the Windows package is produced by cross-publishing, but no one has double-clicked the executable |
 | V2 | The printing workflow has never reached a physical printer | Needs Windows and hardware. The sequencing logic is unit tested and the preview comes from the same code that builds the job. `docs/PRINTING.md` carries the protocol |
 | V3 | OCR recognition is not covered by automated tests | The Tesseract NuGet package ships Windows-only natives. Accuracy was measured manually with the Tesseract CLI — see `docs/OCR.md` |
 | V4 | DPAPI signature protection is not exercised on Linux | Windows-only API. The library is tested with protection reported as unavailable |
 | V5 | Performance budgets are not measured | The numbers in `docs/PLAN.md` are targets. No figure is claimed as achieved |
-| V6 | Whether the native binaries need the Visual C++ redistributable on a bare Windows install | Not checked. If they do, the package needs the runtime DLLs alongside it. **Check before any release** |
+| V6 | Whether OCR runs on a Windows machine that has never installed the Visual C++ runtime | The dependency itself is now settled, not just unchecked: reading the PE import tables of the built package's native DLLs shows `pdfium.dll`, `libSkiaSharp.dll` and `libHarfBuzzSharp.dll` need nothing beyond the OS, while `tesseract50.dll` and `leptonica-1.82.0.dll` import `MSVCP140.dll`, `VCRUNTIME140.dll` and `VCRUNTIME140_1.dll`, none of which ship in the package. What remains unverified is only whether a real clean Windows machine actually lacks them — most do have them already from other software — and that requires a Windows machine this project does not have. **Fix before release**; see `docs/RELEASE.md` |
 | V7 | Output compatibility beyond PDFium | Saved files are verified against PDFium, the engine behind Chrome and Edge. Acrobat, Foxit and others are untested |
 
 ## Working, with a real limitation
@@ -44,6 +44,8 @@ These are the honest gaps in verification, not features that are known broken.
 | L22 | A signature can be imported but not drawn | The library is reachable now: placing the signature tool opens it, and a signature can be imported from a PNG or JPEG, picked, and deleted. Drawing one freehand is not implemented, although `Strings.DrawSignature` anticipates it. The freehand ink tool is the workaround |
 | L23 | No interface for reordering pages | `PdfDocumentWriter` applies a reorder and it is covered by tests; the page operations dialog offers rotate, delete and extract only |
 | L24 | Splitting is one file per page | The engine supports range-based splitting; the interface does not expose it yet |
+| L25 | Printing holds the whole job's pages as full-resolution rasters in memory at once | Nothing bounds how many decoded pages exist simultaneously while a print job is built. Untested end to end, because printing itself is untested end to end (see V2) — a real cost on a very long document, found by the second design review pass and not yet fixed |
+| L26 | Every render, thumbnail and blank-page check re-parses the source PDF from bytes | PDFtoImage 4.1's public API offers no persistent document handle to reuse, so there is no cheaper option without changing that dependency. A real cost on a large document; not measured, and covered by the same "nothing is measured" caveat as the performance budgets in `docs/PLAN.md` |
 | L25 | Merging cannot reorder the sources | Files are merged in the order the picker returns them. Drag-to-reorder before merging is not implemented |
 | L26 | PDFium runs in-process | A memory-safety bug in it is not contained. Keeping the binaries current is the mitigation |
 
