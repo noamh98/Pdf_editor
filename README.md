@@ -164,10 +164,6 @@ build/test.sh
 | `PdfEditor.Ocr.Tests` | 82 | OCR geometry, Hebrew normalisation, the cache, the signature store, temporary file cleanup |
 | `PdfEditor.App.Tests` | 86 | The window itself, headless: right-to-left layout, responsive breakpoints, shortcuts, page operations, form filling, signatures, and both unsaved-work paths |
 
-One caveat worth stating: the headless UI suite fails intermittently in a Linux container — roughly
-one run in sixteen, on a random test, always `PlatformNotSupportedException` at
-`Dispatcher.PushFrame`. It was measured against an earlier commit and reproduces there identically,
-so it is the headless test host rather than the product. Re-running clears it.
 
 Tests that must not change a source file hash it before and after and assert it is untouched.
 `docs/TESTING.md` describes the strategy, the synthetic corpus, and what is covered by a manual

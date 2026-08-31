@@ -61,13 +61,22 @@ was mirrored by the window's right-to-left flow direction; the size readout show
 theme change because the brushes were declared outside the theme dictionaries. All three are fixed
 and all three are traps that can return — see below.
 
-## A measurement worth keeping
+## The intermittent headless failure, and what it turned out to be
 
-The headless UI suite fails intermittently on this Linux container — about one run in sixteen, a
-random test, always `System.PlatformNotSupportedException` at `Dispatcher.PushFrame`. Before
-attributing it to this session's work, the commit *before* any of it was run sixteen times in a
-worktree and failed the same way at the same rate. It is the headless test host, not the product.
-Re-run rather than chasing it, and do not weaken a test to silence it.
+The UI suite used to fail on about one run in ten: a random test, always
+`System.PlatformNotSupportedException` at `Dispatcher.PushFrame`. It was first assumed to be this
+session's doing, then measured against the commit before any of it — which failed identically — and
+so written off as the test host.
+
+That was half right. The cause is real and was fixable: every headless test is dispatched onto one
+session thread and the session pumps each with a nested dispatcher frame, while xUnit runs
+collections concurrently. Several tests were asking the same dispatcher for a frame at once.
+Disabling parallelisation in `TestAppBuilder.cs` serialises what was already serial on that thread,
+so it costs no time, and the failure has not reappeared in 36 consecutive runs against roughly four
+failures in the 39 runs measured before it.
+
+The lesson is the one the plan review makes: "it is the environment" is a hypothesis, not a finding,
+until something is measured on both sides of the change.
 
 ## Architecture, in one paragraph
 

@@ -14,8 +14,7 @@ These are the honest gaps in verification, not features that are known broken.
 | V4 | DPAPI signature protection is not exercised on Linux | Windows-only API. The library is tested with protection reported as unavailable |
 | V5 | Performance budgets are not measured | The numbers in `docs/PLAN.md` are targets. No figure is claimed as achieved |
 | V6 | Whether the native binaries need the Visual C++ redistributable on a bare Windows install | Not checked. If they do, the package needs the runtime DLLs alongside it. **Check before any release** |
-| V7 | The headless UI suite fails intermittently in this Linux container | About one run in sixteen, a random test fails with `System.PlatformNotSupportedException` at `Avalonia.Threading.Dispatcher.PushFrame`. It was measured on the commit before any of this session's work and reproduces there too, so it is the headless test host and not the product. Re-running clears it. It has not been diagnosed further |
-| V8 | Output compatibility beyond PDFium | Saved files are verified against PDFium, the engine behind Chrome and Edge. Acrobat, Foxit and others are untested |
+| V7 | Output compatibility beyond PDFium | Saved files are verified against PDFium, the engine behind Chrome and Edge. Acrobat, Foxit and others are untested |
 
 ## Working, with a real limitation
 
