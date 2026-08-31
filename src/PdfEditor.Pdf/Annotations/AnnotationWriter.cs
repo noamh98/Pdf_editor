@@ -58,7 +58,14 @@ public static class AnnotationWriter
         dict.Elements["/NM"] = new PdfString(annotation.Id);
         dict.Elements["/M"] = new PdfString(FormatDate(annotation.ModifiedUtc));
         dict.Elements["/C"] = ColorArray(document, annotation.Color);
-        dict.Elements["/CA"] = new PdfReal(Math.Clamp(annotation.Opacity, 0, 1));
+        // No /CA: AnnotationRenderer already bakes the opacity into every colour it draws, so the
+        // appearance stream built below is already at the configured opacity. Per the PDF
+        // specification, /CA tells a viewer to additionally composite that appearance at constant
+        // alpha - a viewer that implements this fully would double the dimming, roughly opacity
+        // squared. PDFium's own basic annotation-rendering flag (used for this application's page
+        // preview and thumbnails) does not implement /CA compositing at all, so this fix could not
+        // be verified as a visible difference against our own renderer; it is a spec-level
+        // correctness fix for viewers that do apply it, verified by asserting the key is absent.
         dict.Elements["/BS"] = BorderStyle(document, annotation.LineWidth);
         dict.Elements[AnnotationSerializer.PrivateKey] =
             new PdfString(AnnotationSerializer.Serialize(annotation), PdfStringEncoding.Unicode);

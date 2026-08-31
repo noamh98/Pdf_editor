@@ -11,9 +11,14 @@ fonts="$root/assets/fonts"
 tessdata="$root/assets/tessdata"
 mkdir -p "$fonts" "$tessdata"
 
-FONT_BASE="https://raw.githubusercontent.com/hafontia-zz/Assistant/master/Fonts/TTF"
+# The canonical upstream project. The `hafontia-zz` mirror serves byte-identical files but is an
+# abandoned account rename; do not point at it.
+FONT_BASE="https://raw.githubusercontent.com/hafontia/Assistant/master/Fonts/TTF"
 TESS_BASE="https://raw.githubusercontent.com/tesseract-ocr/tessdata_fast/main"
-OFL_URL="https://raw.githubusercontent.com/hafontia-zz/Assistant/master/OFL.txt"
+# Google Fonts' copy of the licence, not upstream's. Upstream's OFL.txt collapses two copyright
+# lines into one wrong line (it credits the Assistant authors with Source's Reserved Font Name).
+# Assistant derives its Latin glyphs from Source Sans Pro, so both notices must be retained.
+OFL_URL="https://raw.githubusercontent.com/google/fonts/main/ofl/assistant/OFL.txt"
 
 fetch() {
   local url="$1" target="$2"

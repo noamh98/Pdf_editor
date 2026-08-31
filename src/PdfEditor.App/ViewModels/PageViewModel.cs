@@ -139,7 +139,11 @@ public sealed class PageViewModel : ViewModelBase, IDisposable
         previous?.Cancel();
         previous?.Dispose();
 
-        using var cts = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
+        // Not a `using`: a call that supersedes this one disposes it via the exchange above, and
+        // this call must not also dispose it while that supersedes it in flight, nor dispose a
+        // "current" token some later call has already taken over. The exchange in the finally
+        // block below only disposes it if it is still the one this call published.
+        var cts = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
         _pending = cts;
 
         await _renderGate.WaitAsync(cts.Token).ConfigureAwait(false);
@@ -169,6 +173,7 @@ public sealed class PageViewModel : ViewModelBase, IDisposable
         finally
         {
             _renderGate.Release();
+            if (Interlocked.CompareExchange(ref _pending, null, cts) == cts) cts.Dispose();
         }
     }
 

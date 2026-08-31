@@ -37,7 +37,11 @@ public static class BidiClassifier
 
     private static BidiClass FromCategory(int codePoint)
     {
-        if (codePoint > 0x10FFFF) return BidiClass.L;
+        if (codePoint is < 0 or > 0x10FFFF) return BidiClass.L;
+        // An unpaired surrogate is not a code point ConvertFromUtf32 will accept, and text
+        // truncated in the middle of an astral character produces one. DerivedBidiClass gives the
+        // surrogate block the default class, so classify it rather than throwing at the caller.
+        if (codePoint is >= 0xD800 and <= 0xDFFF) return BidiClass.L;
         var cat = CharUnicodeInfo.GetUnicodeCategory(char.ConvertFromUtf32(codePoint), 0);
         return cat switch
         {

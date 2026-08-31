@@ -116,6 +116,54 @@ public class TextLayoutTests : IDisposable
         Assert.Contains("26/08/2026", joined);
     }
 
+    // A soft-wrapped line is not a paragraph. UAX#9 resolves the base direction once per
+    // paragraph (P2/P3) and every line of it is reordered at that level; deciding the direction
+    // again per line makes a line that happens to begin with a Latin word read left to right
+    // inside a Hebrew paragraph.
+    [Fact]
+    public void EveryWrappedLineIsOrderedAtTheParagraphDirection()
+    {
+        const string text =
+            "המסמך הזה כולל also a fairly long english phrase in the middle ואחריו עוד טקסט בעברית";
+        var font = Font(11);
+        const double box = 150, padding = 4;
+
+        var lines = TextLayout.Layout(_gfx, text, font, box, 600, padding,
+            TextAlignment.Start, BidiParagraphDirection.Auto);
+        var logicalLines = TextLayout.WrapToWidth(_gfx, text, font, box - 2 * padding);
+
+        Assert.True(logicalLines.Count > 2, "the sample needs to wrap for this to mean anything");
+        Assert.True(
+            logicalLines.Any(l => BidiAlgorithm.ToVisual(l, BidiParagraphDirection.Auto) !=
+                                  BidiAlgorithm.ToVisual(l, BidiParagraphDirection.RightToLeft)),
+            "no wrapped line differs between the two base directions, so this proves nothing");
+
+        Assert.Equal(logicalLines.Count, lines.Count);
+        for (int i = 0; i < lines.Count; i++)
+            Assert.Equal(
+                BidiAlgorithm.ToVisual(logicalLines[i], BidiParagraphDirection.RightToLeft),
+                lines[i].VisualText);
+    }
+
+    [Fact]
+    public void ALineStartingWithLatinInsideAHebrewParagraphStaysRightToLeft()
+    {
+        const string text = "סיכום פגישה english summary follows here שורה אחרונה בעברית";
+        var font = Font(11);
+        var lines = TextLayout.Layout(_gfx, text, font, 130, 600, 4,
+            TextAlignment.Start, BidiParagraphDirection.Auto);
+        var logicalLines = TextLayout.WrapToWidth(_gfx, text, font, 130 - 8);
+
+        int index = logicalLines
+            .Select((line, i) => (line, i))
+            .First(x => BidiAlgorithm.Analyze(x.line).IsRightToLeftParagraph == false).i;
+
+        // That line is Latin-first on its own, but it belongs to a Hebrew paragraph.
+        Assert.Equal(
+            BidiAlgorithm.ToVisual(logicalLines[index], BidiParagraphDirection.RightToLeft),
+            lines[index].VisualText);
+    }
+
     [Fact]
     public void ForcedDirectionOverridesTheDetectedOne()
     {

@@ -92,6 +92,30 @@ public class DocumentWorkflowTests
     }
 
     [AvaloniaFact]
+    public async Task APageCanBeRenderedAgainAtANewZoomAfterFinishingTheLastOne()
+    {
+        // EnsureRenderedAsync published its cancellation source in a field, then disposed it
+        // unconditionally on the way out via a `using`, without clearing the field. A call that
+        // completes successfully leaves that disposed source sitting there; the next call - here, a
+        // zoom change, which is the only case that does not short-circuit on IsSharp - exchanges it
+        // out and calls Cancel() on it, throwing ObjectDisposedException. Every zoom step after the
+        // page had already rendered once hit exactly this.
+        using var fixture = new ServicesFixture();
+        var viewModel = new MainWindowViewModel(fixture.Services);
+        await viewModel.OpenAsync(WriteFixture(fixture.Root, 1));
+
+        var page = viewModel.Document!.Pages[0];
+        await page.EnsureRenderedAsync();
+        Assert.True(page.IsSharp);
+
+        page.Scale *= 1.5;
+        await page.EnsureRenderedAsync();
+
+        Assert.NotNull(page.Bitmap);
+        Assert.True(page.IsSharp);
+    }
+
+    [AvaloniaFact]
     public async Task ThumbnailsAreRenderedAtASmallFixedWidth()
     {
         using var fixture = new ServicesFixture();

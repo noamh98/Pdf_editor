@@ -4,6 +4,7 @@ using Avalonia.Input;
 using Avalonia.Interactivity;
 using Avalonia.Markup.Xaml;
 using Avalonia.Platform.Storage;
+using Avalonia.Threading;
 using PdfEditor.App.Services;
 using PdfEditor.App.ViewModels;
 
@@ -12,6 +13,8 @@ namespace PdfEditor.App.Views;
 public sealed partial class MainWindow : Window
 {
     private MainWindowViewModel? _viewModel;
+    private bool _closeConfirmed;
+    private DispatcherTimer? _autosaveTimer;
 
     public MainWindow()
     {
@@ -33,7 +36,53 @@ public sealed partial class MainWindow : Window
             {
                 if (Avalonia.Application.Current is { } app) ThemeApplier.Apply(app, preference);
             };
+            StartAutosave();
         };
+    }
+
+    /// <summary>
+    /// The window drives autosave because it is the part of the pair with a lifetime: it is opened
+    /// once and closed once, so the timer is guaranteed to stop.
+    /// </summary>
+    private void StartAutosave()
+    {
+        _autosaveTimer?.Stop();
+        _autosaveTimer = null;
+        if (_viewModel?.AutosaveInterval is not { } interval) return;
+
+        _autosaveTimer = new DispatcherTimer { Interval = interval };
+        _autosaveTimer.Tick += (_, _) => _ = _viewModel.AutosaveNowAsync();
+        _autosaveTimer.Start();
+    }
+
+    /// <summary>
+    /// Work stranded by a previous run is offered once the window exists, so the prompt has a
+    /// parent to sit on rather than appearing before there is anything on screen.
+    /// </summary>
+    protected override async void OnOpened(EventArgs e)
+    {
+        base.OnOpened(e);
+        if (_viewModel is not null) await _viewModel.OfferRecoveryAsync();
+    }
+
+    /// <summary>
+    /// The window's close button bypasses every command, so the unsaved-work prompt has to be
+    /// hung off the closing event. The prompt is asynchronous and the event is not, so the first
+    /// close is always cancelled and re-issued once the user has answered.
+    /// </summary>
+    protected override async void OnClosing(WindowClosingEventArgs e)
+    {
+        base.OnClosing(e);
+        if (_closeConfirmed || e.Cancel || _viewModel is null) return;
+
+        e.Cancel = true;
+        if (await _viewModel.ConfirmCloseAsync())
+        {
+            _autosaveTimer?.Stop();
+            _autosaveTimer = null;
+            _closeConfirmed = true;
+            Close();
+        }
     }
 
     /// <summary>
@@ -81,6 +130,36 @@ public sealed partial class MainWindow : Window
     private void OnToolClicked(object? sender, RoutedEventArgs e)
     {
         if (sender is Control { Tag: EditorTool tool }) _viewModel?.Toolbox.Select(tool);
+    }
+
+    private void OnSearchHitClicked(object? sender, RoutedEventArgs e)
+    {
+        if (sender is Control { Tag: SearchHitViewModel hit }) _viewModel?.GoToPage(hit.PageIndex);
+    }
+
+    private void OnPageOperationChosen(object? sender, RoutedEventArgs e)
+    {
+        if (sender is Control { Tag: string name }
+            && Enum.TryParse<PageOperation>(name, out var operation)
+            && _viewModel?.PageOperations is { } operations)
+        {
+            operations.Operation = operation;
+        }
+    }
+
+    /// <summary>A signature was positioned but has no image; the shell offers the library.</summary>
+    private async void OnSignatureRequested(object? sender, PdfEditor.Core.Annotations.SignatureAnnotation e)
+    {
+        if (_viewModel is not null) await _viewModel.ChooseSignatureForAsync(e);
+    }
+
+    private void OnAlignmentChosen(object? sender, RoutedEventArgs e)
+    {
+        if (sender is Control { Tag: string name }
+            && Enum.TryParse<PdfEditor.Core.Annotations.TextAlignment>(name, out var alignment))
+        {
+            _viewModel?.Properties?.ApplyAlignment(alignment);
+        }
     }
 
     private void OnSwatchClicked(object? sender, RoutedEventArgs e)

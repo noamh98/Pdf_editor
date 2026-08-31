@@ -52,13 +52,31 @@ public sealed class PropertiesViewModel : ViewModelBase
     public bool SupportsFill => _target is ShapeAnnotation
     { Kind: AnnotationKind.Rectangle or AnnotationKind.Ellipse };
 
+    /// <summary>
+    /// Whether a line width would change anything. A text box only has a stroke if something gave
+    /// it one — ours are created plain — and showing the slider for one that has none puts a
+    /// control in front of the user that does nothing when they move it.
+    /// </summary>
     public bool SupportsLineWidth => _target is ShapeAnnotation or InkAnnotation or MarkAnnotation
-        or TextBoxAnnotation;
+        || _target is TextBoxAnnotation { BorderColor: not null };
 
+    /// <summary>
+    /// The colour swatch. A text box has no stroke of its own, so for one the swatch is the ink of
+    /// the glyphs — otherwise picking a colour would appear to do nothing at all.
+    /// </summary>
     public AnnotationColor Color
     {
-        get => _target?.Color ?? AnnotationColor.Red;
-        set => Mutate(a => a.Color = value, Strings.ToolSelect);
+        get => _target switch
+        {
+            TextBoxAnnotation t => t.TextColor,
+            { } a => a.Color,
+            null => AnnotationColor.Red
+        };
+        set => Mutate(a =>
+        {
+            a.Color = value;
+            if (a is TextBoxAnnotation t) t.TextColor = value;
+        }, Strings.ToolSelect);
     }
 
     public double LineWidth
@@ -85,6 +103,19 @@ public sealed class PropertiesViewModel : ViewModelBase
         set => Mutate(a => { if (a is TextBoxAnnotation t) t.FontSize = Math.Clamp(value, 6, 96); },
             Strings.ToolTextBox);
     }
+
+    /// <summary>
+    /// The font size as a number beside its slider. Filling a form often means matching a size
+    /// exactly, which a slider alone cannot tell you.
+    /// </summary>
+    public string FontSizeText => $"{Math.Round(FontSize)}";
+
+    /// <summary>Alignment, as three mutually exclusive states the view binds a button to each of.</summary>
+    public bool IsAlignStart => Alignment == TextAlignment.Start;
+    public bool IsAlignCenter => Alignment == TextAlignment.Center;
+    public bool IsAlignEnd => Alignment == TextAlignment.End;
+
+    public void ApplyAlignment(TextAlignment alignment) => Alignment = alignment;
 
     public bool Bold
     {
@@ -124,7 +155,8 @@ public sealed class PropertiesViewModel : ViewModelBase
         RaiseAll(nameof(HasTarget), nameof(IsEditable), nameof(IsForeign), nameof(TitleText),
             nameof(IsTextBox), nameof(SupportsFill), nameof(SupportsLineWidth),
             nameof(Color), nameof(LineWidth), nameof(Opacity), nameof(Text), nameof(FontSize),
-            nameof(Bold), nameof(Alignment), nameof(GeometryText), nameof(PageText));
+            nameof(FontSizeText), nameof(Bold), nameof(Alignment), nameof(IsAlignStart),
+            nameof(IsAlignCenter), nameof(IsAlignEnd), nameof(GeometryText), nameof(PageText));
     }
 
     private void Mutate(Action<Annotation> change, string description)
@@ -137,7 +169,9 @@ public sealed class PropertiesViewModel : ViewModelBase
         _snapshot = _target.Clone();
 
         RaiseAll(nameof(Color), nameof(LineWidth), nameof(Opacity), nameof(Text), nameof(FontSize),
-            nameof(Bold), nameof(Alignment), nameof(GeometryText));
+            nameof(FontSizeText), nameof(Bold), nameof(Alignment), nameof(IsAlignStart),
+            nameof(IsAlignCenter), nameof(IsAlignEnd), nameof(SupportsLineWidth),
+            nameof(GeometryText));
     }
 
     /// <summary>Called after a drag or resize so the panel reflects the new geometry.</summary>

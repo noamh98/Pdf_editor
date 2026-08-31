@@ -1,5 +1,6 @@
 using PdfEditor.Core.Annotations;
 using PdfEditor.Core.Documents;
+using PdfEditor.Core.Text;
 using PdfEditor.Pdf.Documents;
 using PdfSharp.Pdf;
 using PdfSharp.Pdf.IO;
@@ -96,6 +97,177 @@ public class AnnotationRoundTripTests
             Assert.Equal(original.LineWidth, match.LineWidth, 3);
             Assert.False(match.IsForeign);
         }
+    }
+
+    /// <summary>
+    /// Everything the editor lets a user set, on every kind, with values that are all distinct from
+    /// the defaults so a property that is quietly dropped shows up rather than matching by luck.
+    /// </summary>
+    private static IEnumerable<Annotation> EveryKindFullyDressed() =>
+    [
+        new TextBoxAnnotation
+        {
+            PageIndex = 0,
+            Rect = new PdfRect(50, 700, 300, 70),
+            Text = "חוזה מס' 42 — קובץ report-2026.pdf נחתם ב-26/08/2026 בשָׁעָה 14:30",
+            FontSize = 17.5,
+            Bold = true,
+            Italic = true,
+            TextColor = new AnnotationColor(17, 34, 51),
+            BackgroundColor = new AnnotationColor(255, 249, 196),
+            BorderColor = new AnnotationColor(245, 176, 65),
+            Alignment = TextAlignment.Center,
+            Padding = 9.5,
+            Direction = BidiParagraphDirection.RightToLeft,
+            Color = new AnnotationColor(1, 2, 3),
+            LineWidth = 1.75,
+            Opacity = 0.62,
+            Rotation = 33.5
+        },
+        new ShapeAnnotation(AnnotationKind.Rectangle)
+        {
+            PageIndex = 1,
+            Rect = new PdfRect(50, 600, 200, 70),
+            Color = new AnnotationColor(211, 47, 47),
+            FillColor = new AnnotationColor(9, 8, 7, 128),
+            LineWidth = 3.25,
+            Opacity = 0.4,
+            Rotation = -15
+        },
+        new ShapeAnnotation(AnnotationKind.Line)
+        {
+            PageIndex = 0,
+            Rect = new PdfRect(50, 500, 200, 60),
+            Start = new PdfPoint(53.5, 507.25),
+            End = new PdfPoint(247.5, 553.75),
+            Color = new AnnotationColor(56, 142, 60),
+            LineWidth = 2.5,
+            Opacity = 0.9,
+            Rotation = 7
+        },
+        new ShapeAnnotation(AnnotationKind.Arrow)
+        {
+            PageIndex = 0,
+            Rect = new PdfRect(300, 500, 120, 60),
+            Start = new PdfPoint(410, 555),
+            End = new PdfPoint(305, 505),
+            Color = new AnnotationColor(25, 118, 210),
+            LineWidth = 4,
+            Opacity = 0.75
+        },
+        new ShapeAnnotation(AnnotationKind.Highlight)
+        {
+            PageIndex = 0,
+            Rect = new PdfRect(50, 460, 220, 24),
+            Color = AnnotationColor.Yellow,
+            Opacity = 0.35
+        },
+        new MarkAnnotation(AnnotationKind.CheckMark)
+        {
+            PageIndex = 1,
+            Rect = new PdfRect(320, 500, 40, 40),
+            Opacity = 0.8,
+            Rotation = 12
+        },
+        new MarkAnnotation(AnnotationKind.CrossMark)
+        {
+            PageIndex = 1,
+            Rect = new PdfRect(380, 500, 40, 40),
+            Color = new AnnotationColor(80, 0, 0)
+        },
+        BuildInk()
+    ];
+
+    [Fact]
+    public async Task EveryEditablePropertySurvivesSaveAndReopen()
+    {
+        using var work = new TempWorkspace();
+        var source = work.Write("source.pdf", PdfFixtures.TextDocument(2));
+        var target = work.File("annotated.pdf");
+        var originals = EveryKindFullyDressed().ToList();
+
+        await using (var doc = await Loader.OpenAsync(source, Ct))
+            await Writer.SaveAsync(doc, new SaveRequest(target, SaveMode.Editable, originals), null, Ct);
+
+        await using var reopened = await Loader.OpenAsync(target, Ct);
+        var restored = reopened.LoadAnnotations();
+        Assert.Equal(originals.Count, restored.Count);
+
+        foreach (var original in originals)
+        {
+            var match = Assert.Single(restored, a => a.Id == original.Id);
+            Assert.Equal(original.Kind, match.Kind);
+            Assert.Equal(original.PageIndex, match.PageIndex);
+            Assert.Equal(original.Rect, match.Rect);
+            Assert.Equal(original.Color, match.Color);
+            Assert.Equal(original.LineWidth, match.LineWidth, 4);
+            Assert.Equal(original.Opacity, match.Opacity, 4);
+            Assert.Equal(original.Rotation, match.Rotation, 4);
+            Assert.False(match.IsForeign);
+
+            switch (original)
+            {
+                case TextBoxAnnotation t:
+                    var rt = Assert.IsType<TextBoxAnnotation>(match);
+                    Assert.Equal(t.Text, rt.Text);
+                    Assert.Equal(t.FontSize, rt.FontSize, 4);
+                    Assert.Equal(t.Bold, rt.Bold);
+                    Assert.Equal(t.Italic, rt.Italic);
+                    Assert.Equal(t.TextColor, rt.TextColor);
+                    Assert.Equal(t.BackgroundColor, rt.BackgroundColor);
+                    Assert.Equal(t.BorderColor, rt.BorderColor);
+                    Assert.Equal(t.Alignment, rt.Alignment);
+                    Assert.Equal(t.Padding, rt.Padding, 4);
+                    Assert.Equal(t.Direction, rt.Direction);
+                    break;
+
+                case ShapeAnnotation sh:
+                    var rs = Assert.IsType<ShapeAnnotation>(match);
+                    Assert.Equal(sh.FillColor, rs.FillColor);
+                    Assert.Equal(sh.Start, rs.Start);
+                    Assert.Equal(sh.End, rs.End);
+                    break;
+
+                case InkAnnotation ink:
+                    var ri = Assert.IsType<InkAnnotation>(match);
+                    Assert.Equal(ink.Strokes.Count, ri.Strokes.Count);
+                    for (int i = 0; i < ink.Strokes.Count; i++)
+                        Assert.Equal(ink.Strokes[i], ri.Strokes[i]);
+                    break;
+            }
+        }
+    }
+
+    // Hebrew reaches the file as an escaped payload and as a /Contents string; both have to come
+    // back byte for byte, including nikud, an embedded Latin file name and Western digits.
+    [Theory]
+    [InlineData("שלום עולם")]
+    [InlineData("בְּרֵאשִׁית בָּרָא אֱלֹהִים")]
+    [InlineData("הקובץ report-2026.pdf נשמר ב-26/08/2026 בשעה 14:30")]
+    [InlineData("מעורב Mixed 123 עברית ABC")]
+    [InlineData("שורה ראשונה\nשורה שנייה\nthird line")]
+    [InlineData("סוגריים (בתוך) [וגם] «כאלה»")]
+    [InlineData("סימן ‏RLM‎ ומקף־עברי")]
+    [InlineData("emoji \U0001F600 בתוך עברית")]
+    public async Task HebrewTextSurvivesTheFileVerbatim(string text)
+    {
+        using var work = new TempWorkspace();
+        var source = work.Write("source.pdf", PdfFixtures.TextDocument(1));
+        var target = work.File("annotated.pdf");
+
+        var original = new TextBoxAnnotation
+        {
+            PageIndex = 0,
+            Rect = new PdfRect(50, 600, 400, 120),
+            Text = text
+        };
+
+        await using (var doc = await Loader.OpenAsync(source, Ct))
+            await Writer.SaveAsync(doc, new SaveRequest(target, SaveMode.Editable, [original]), null, Ct);
+
+        await using var reopened = await Loader.OpenAsync(target, Ct);
+        var restored = Assert.IsType<TextBoxAnnotation>(Assert.Single(reopened.LoadAnnotations()));
+        Assert.Equal(text, restored.Text);
     }
 
     [Fact]
@@ -299,8 +471,93 @@ public class AnnotationRoundTripTests
         Assert.Single(after, a => !a.IsForeign);
     }
 
+    // Flattening burns marks into the page. An annotation from another application that carries no
+    // appearance stream cannot be burned in — there is nothing to draw — so removing it destroys
+    // another reviewer's mark with nothing put in its place.
+    [Fact]
+    public async Task FlatteningKeepsAForeignAnnotationItCannotDraw()
+    {
+        using var work = new TempWorkspace();
+        var source = work.Write("foreign.pdf", DocumentWithForeignAnnotation());
+        var flat = work.File("flat.pdf");
+
+        await using (var doc = await Loader.OpenAsync(source, Ct))
+            await Writer.SaveAsync(doc,
+                new SaveRequest(flat, SaveMode.Flattened, [DocumentLifecycleTests.SampleTextBox(0)]), null, Ct);
+
+        await using var reopened = await Loader.OpenAsync(flat, Ct);
+        var kept = Assert.Single(reopened.LoadAnnotations());
+        Assert.True(kept.IsForeign);
+        Assert.Equal("other-app-1", kept.Id);
+    }
+
+    [Fact]
+    public async Task FlatteningKeepsAForeignLinkAnnotation()
+    {
+        using var work = new TempWorkspace();
+        var source = work.Write("link.pdf", DocumentWithForeignLink());
+        var flat = work.File("flat.pdf");
+
+        await using (var doc = await Loader.OpenAsync(source, Ct))
+            await Writer.SaveAsync(doc,
+                new SaveRequest(flat, SaveMode.Flattened, [DocumentLifecycleTests.SampleTextBox(0)]), null, Ct);
+
+        using var check = PdfReader.Open(flat, PdfDocumentOpenMode.Import);
+        var annots = check.Pages[0].Elements.GetArray("/Annots");
+        Assert.NotNull(annots);
+        Assert.Contains(Enumerable.Range(0, annots!.Elements.Count),
+            i => annots.Elements.GetDictionary(i)?.Elements.GetName("/Subtype") == "/Link");
+    }
+
+    // The other half of the contract: an appearance that *was* drawn into the content must not
+    // also survive as an annotation, or the mark is rendered twice and is still un-flattened.
+    [Fact]
+    public async Task FlatteningRemovesAForeignAnnotationOnceItsAppearanceIsDrawn()
+    {
+        using var work = new TempWorkspace();
+        var source = work.Write("withap.pdf", DocumentWithForeignAnnotation(withAppearance: true));
+        var flat = work.File("flat.pdf");
+
+        await using (var doc = await Loader.OpenAsync(source, Ct))
+            await Writer.SaveAsync(doc, new SaveRequest(flat, SaveMode.Flattened, []), null, Ct);
+
+        using var check = PdfReader.Open(flat, PdfDocumentOpenMode.Import);
+        Assert.False(check.Pages[0].Elements.ContainsKey("/Annots"));
+
+        await using var reopened = await Loader.OpenAsync(flat, Ct);
+        var rendered = await reopened.RenderAsync(new RenderRequest(0, 1.5, IncludeAnnotations: false), Ct);
+        int inked = 0;
+        for (int i = 0; i < rendered.BgraPixels.Length; i += 4)
+            if (rendered.BgraPixels[i] < 240) inked++;
+        Assert.True(inked > 2000, $"the foreign appearance was not burned in; only {inked} inked pixels");
+    }
+
+    /// <summary>A /Link with a destination and, as is usual, no appearance stream.</summary>
+    private static byte[] DocumentWithForeignLink()
+    {
+        using var input = new MemoryStream(PdfFixtures.TextDocument(1), writable: false);
+        using var doc = PdfReader.Open(input, PdfDocumentOpenMode.Modify);
+        var page = doc.Pages[0];
+
+        var annot = new PdfDictionary(doc);
+        annot.Elements["/Type"] = new PdfName("/Annot");
+        annot.Elements["/Subtype"] = new PdfName("/Link");
+        annot.Elements["/Rect"] = new PdfArray(doc,
+            new PdfReal(60), new PdfReal(60), new PdfReal(200), new PdfReal(80));
+        annot.Elements["/Border"] = new PdfArray(doc, new PdfInteger(0), new PdfInteger(0), new PdfInteger(0));
+        doc.Internals.AddObject(annot);
+
+        var annots = new PdfArray(doc);
+        annots.Elements.Add(annot.Reference!);
+        page.Elements["/Annots"] = annots;
+
+        using var buffer = new MemoryStream();
+        doc.Save(buffer, closeStream: false);
+        return buffer.ToArray();
+    }
+
     /// <summary>A /Square annotation written without this application's private payload.</summary>
-    private static byte[] DocumentWithForeignAnnotation()
+    private static byte[] DocumentWithForeignAnnotation(bool withAppearance = false)
     {
         using var input = new MemoryStream(PdfFixtures.TextDocument(1), writable: false);
         using var doc = PdfReader.Open(input, PdfDocumentOpenMode.Modify);
@@ -314,6 +571,7 @@ public class AnnotationRoundTripTests
         annot.Elements["/C"] = new PdfArray(doc, new PdfReal(0), new PdfReal(0), new PdfReal(1));
         annot.Elements["/F"] = new PdfInteger(4);
         annot.Elements["/NM"] = new PdfString("other-app-1");
+        if (withAppearance) annot.Elements["/AP"] = ForeignAppearance(doc, 200, 80);
         doc.Internals.AddObject(annot);
 
         var annots = new PdfArray(doc);
@@ -323,5 +581,59 @@ public class AnnotationRoundTripTests
         using var buffer = new MemoryStream();
         doc.Save(buffer, closeStream: false);
         return buffer.ToArray();
+    }
+
+    /// <summary>A minimal /Subtype /Form appearance filling its bounding box with black.</summary>
+    private static PdfDictionary ForeignAppearance(PdfDocument doc, double width, double height)
+    {
+        var form = new PdfDictionary(doc);
+        form.CreateStream(System.Text.Encoding.ASCII.GetBytes(
+            string.Create(System.Globalization.CultureInfo.InvariantCulture,
+                $"0 0 0 rg 0 0 {width} {height} re f\n")));
+        form.Elements["/Type"] = new PdfName("/XObject");
+        form.Elements["/Subtype"] = new PdfName("/Form");
+        form.Elements["/FormType"] = new PdfInteger(1);
+        form.Elements["/BBox"] = new PdfArray(doc,
+            new PdfReal(0), new PdfReal(0), new PdfReal(width), new PdfReal(height));
+        doc.Internals.AddObject(form);
+
+        var ap = new PdfDictionary(doc);
+        ap.Elements["/N"] = form.Reference!;
+        return ap;
+    }
+
+    [Fact]
+    public async Task ASavedAnnotationHasNoCaEntryEvenAtPartialOpacity()
+    {
+        // AnnotationRenderer bakes the configured opacity into every colour it draws, so the
+        // appearance stream is already at the right opacity. Writing that same value into the
+        // annotation dictionary's /CA on top would, per the PDF specification, tell a viewer that
+        // implements full annotation compositing to composite the already-dimmed appearance a
+        // second time - roughly opacity squared. This can't be observed through this project's own
+        // renderer: PDFium's basic annotation-rendering flag (used for every page preview and
+        // thumbnail here) does not implement /CA compositing at all, which is exactly why the
+        // structural absence of the key has to be asserted directly rather than inferred from a
+        // pixel sample that this pipeline cannot make sensitive to it.
+        using var work = new TempWorkspace();
+        var source = work.Write("source.pdf", PdfFixtures.TextDocument(1));
+        var target = work.File("half-opacity.pdf");
+
+        var shape = new ShapeAnnotation(AnnotationKind.Rectangle)
+        {
+            PageIndex = 0,
+            Rect = new PdfRect(60, 700, 120, 60),
+            FillColor = AnnotationColor.Red,
+            Color = AnnotationColor.Red,
+            Opacity = 0.5
+        };
+
+        await using (var doc = await Loader.OpenAsync(source, Ct))
+            await Writer.SaveAsync(doc, new SaveRequest(target, SaveMode.Editable, [shape]), null, Ct);
+
+        using var check = PdfReader.Open(target, PdfDocumentOpenMode.Import);
+        var dict = check.Pages[0].Elements.GetArray("/Annots")!.Elements.GetDictionary(0)!;
+
+        Assert.False(dict.Elements.ContainsKey("/CA"),
+            "/CA would double-apply opacity on top of the already-dimmed appearance stream");
     }
 }

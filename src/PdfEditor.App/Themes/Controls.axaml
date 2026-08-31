@@ -12,9 +12,25 @@
     <Setter Property="TextElement.Foreground" Value="{DynamicResource TextBrush}" />
   </Style>
 
+  <!--
+    No Foreground setter here. An implicit setter would beat inheritance, and a label inside a
+    button that recolours its content — the accent Open button, a danger action — would keep the
+    body colour while the icon beside it followed the button. The Window seeds TextElement.
+    Foreground, so an unclassed TextBlock still lands on the body colour.
+  -->
   <Style Selector="TextBlock">
-    <Setter Property="Foreground" Value="{DynamicResource TextBrush}" />
     <Setter Property="TextWrapping" Value="Wrap" />
+  </Style>
+
+  <!--
+    Icons are drawn on a twenty unit grid but each geometry ends where its own strokes end, so an
+    unsized Path measures to its own bounds: the check mark came out visibly smaller than the cross
+    beside it. A fixed box with no stretch puts every icon back on the grid it was drawn for.
+  -->
+  <Style Selector="Path">
+    <Setter Property="Width" Value="20" />
+    <Setter Property="Height" Value="20" />
+    <Setter Property="Stretch" Value="None" />
   </Style>
 
   <Style Selector="TextBlock.muted">
@@ -79,9 +95,15 @@
     <Setter Property="BoxShadow" Value="{DynamicResource CardShadow}" />
   </Style>
 
-  <!-- A quiet grouping surface used inside the side panels. -->
+  <!--
+    A quiet grouping surface used inside the side panels. The fill alone is 1.13:1 against the
+    panel behind it in both themes, which is under the threshold where an edge reads at all, so the
+    grouping is carried by a hairline and the fill only reinforces it.
+  -->
   <Style Selector="Border.group">
     <Setter Property="Background" Value="{DynamicResource PanelAltBrush}" />
+    <Setter Property="BorderBrush" Value="{DynamicResource BorderBrush}" />
+    <Setter Property="BorderThickness" Value="1" />
     <Setter Property="CornerRadius" Value="{DynamicResource RadiusMedium}" />
     <Setter Property="Padding" Value="12" />
   </Style>
@@ -209,6 +231,92 @@
 
   <Style Selector="Button.danger:pointerover /template/ ContentPresenter">
     <Setter Property="Background" Value="{DynamicResource DangerSoftBrush}" />
+  </Style>
+
+  <!--
+    A segmented choice: three buttons that read as one control with one of them selected. Used for
+    text alignment, where the options are mutually exclusive and worth seeing all at once rather
+    than hiding two of them behind a dropdown.
+  -->
+  <Style Selector="RadioButton.segment">
+    <Setter Property="Background" Value="Transparent" />
+    <Setter Property="BorderBrush" Value="{DynamicResource BorderStrongBrush}" />
+    <Setter Property="BorderThickness" Value="1" />
+    <Setter Property="CornerRadius" Value="{DynamicResource RadiusSmall}" />
+    <Setter Property="Padding" Value="12,6" />
+    <Setter Property="MinHeight" Value="{DynamicResource HitTargetMin}" />
+    <Setter Property="MinWidth" Value="58" />
+    <Setter Property="HorizontalContentAlignment" Value="Center" />
+    <Setter Property="Foreground" Value="{DynamicResource TextBrush}" />
+    <Setter Property="Template">
+      <ControlTemplate>
+        <Border Name="PART_Border"
+                Background="{TemplateBinding Background}"
+                BorderBrush="{TemplateBinding BorderBrush}"
+                BorderThickness="{TemplateBinding BorderThickness}"
+                CornerRadius="{TemplateBinding CornerRadius}">
+          <ContentPresenter Name="PART_ContentPresenter"
+                            Content="{TemplateBinding Content}"
+                            Padding="{TemplateBinding Padding}"
+                            HorizontalContentAlignment="Center"
+                            VerticalContentAlignment="Center" />
+        </Border>
+      </ControlTemplate>
+    </Setter>
+  </Style>
+
+  <Style Selector="RadioButton.segment:pointerover /template/ Border#PART_Border">
+    <Setter Property="Background" Value="{DynamicResource HoverBrush}" />
+  </Style>
+
+  <Style Selector="RadioButton.segment:checked /template/ Border#PART_Border">
+    <Setter Property="Background" Value="{DynamicResource AccentSoftBrush}" />
+    <Setter Property="BorderBrush" Value="{DynamicResource AccentBrush}" />
+  </Style>
+
+  <Style Selector="RadioButton.segment:checked">
+    <Setter Property="Foreground" Value="{DynamicResource AccentBrush}" />
+    <Setter Property="FontWeight" Value="SemiBold" />
+  </Style>
+
+  <!--
+    The signature list. Fluent's own selection colour is a saturated blue that belongs to no part of
+    this palette, and in the dark theme it shouts; selection is drawn with the accent tokens
+    instead, the same way every other selected thing in this application is.
+  -->
+  <Style Selector="ListBox.signatures ListBoxItem">
+    <Setter Property="Padding" Value="10" />
+    <Setter Property="CornerRadius" Value="{DynamicResource RadiusSmall}" />
+  </Style>
+
+  <Style Selector="ListBox.signatures ListBoxItem /template/ ContentPresenter#PART_ContentPresenter">
+    <Setter Property="CornerRadius" Value="{DynamicResource RadiusSmall}" />
+  </Style>
+
+  <Style Selector="ListBox.signatures ListBoxItem:pointerover /template/ ContentPresenter#PART_ContentPresenter">
+    <Setter Property="Background" Value="{DynamicResource HoverBrush}" />
+  </Style>
+
+  <Style Selector="ListBox.signatures ListBoxItem:selected /template/ ContentPresenter#PART_ContentPresenter">
+    <Setter Property="Background" Value="{DynamicResource AccentSoftBrush}" />
+    <Setter Property="TextBlock.Foreground" Value="{DynamicResource TextBrush}" />
+  </Style>
+
+  <Style Selector="ListBox.signatures ListBoxItem:selected:pointerover /template/ ContentPresenter#PART_ContentPresenter">
+    <Setter Property="Background" Value="{DynamicResource AccentSoftBrush}" />
+    <Setter Property="TextBlock.Foreground" Value="{DynamicResource TextBrush}" />
+  </Style>
+
+  <!--
+    A signature is ink meant for white paper, and the page it will land on is white in both themes.
+    The preview tile is therefore white in both themes too: on the dark surface a dark signature
+    would otherwise be drawn in near-invisible ink.
+  -->
+  <Style Selector="Border.signaturePreview">
+    <Setter Property="Background" Value="#FFFFFF" />
+    <Setter Property="BorderBrush" Value="{DynamicResource BorderBrush}" />
+    <Setter Property="BorderThickness" Value="1" />
+    <Setter Property="CornerRadius" Value="{DynamicResource RadiusSmall}" />
   </Style>
 
   <!-- Tool strip: a single rounded group so the drawing tools read as one instrument. -->
@@ -368,15 +476,18 @@
     <Setter Property="Margin" Value="0,0,0,24" />
   </Style>
 
-  <!-- Small status pills in the status bar -->
+  <!-- Small status pills in the status bar; the hairline is what gives them a shape in dark. -->
   <Style Selector="Border.pill">
     <Setter Property="Background" Value="{DynamicResource PanelAltBrush}" />
+    <Setter Property="BorderBrush" Value="{DynamicResource BorderBrush}" />
+    <Setter Property="BorderThickness" Value="1" />
     <Setter Property="CornerRadius" Value="{DynamicResource RadiusPill}" />
     <Setter Property="Padding" Value="10,3" />
   </Style>
 
   <Style Selector="Border.pill.dirty">
     <Setter Property="Background" Value="{DynamicResource WarningBrush}" />
+    <Setter Property="BorderBrush" Value="{DynamicResource WarningBrush}" />
   </Style>
 
   <Style Selector="Border.pill.dirty TextBlock">

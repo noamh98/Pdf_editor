@@ -17,17 +17,42 @@ Captured from the real application rendering headlessly; they are not mockups.
 
 | Start screen |
 | --- |
-| ![The start screen](docs/images/start-screen.png) |
+| ![The start screen](docs/images/start-light.png) |
+
+Filling a form in: a name and an identity number placed as plain text, with the dashed guide the
+editor draws around the selected field. That guide never reaches the PDF.
 
 | Editing, light theme | Editing, dark theme |
 | --- | --- |
-| ![The editor in the light theme](docs/images/shell-light.png) | ![The editor in the dark theme](docs/images/shell-dark.png) |
+| ![The editor in the light theme](docs/images/shell-wide-light.png) | ![The editor in the dark theme](docs/images/shell-wide-dark.png) |
+
+> The dark-theme image above has a known, confirmed rendering defect: the properties panel shown
+> selected here — any selection does it — makes the whole window capture as light in this project's
+> headless screenshot tool, even though the underlying theme resources resolve correctly. Whether
+> this also happens in the real, running Windows application is unverified; see the first entry in
+> [`docs/KNOWN_LIMITATIONS.md`](docs/KNOWN_LIMITATIONS.md) for the full evidence before trusting this
+> image, or the dark theme with a selection active, at face value.
 
 At a narrow window the shell rearranges itself: the thumbnail rail closes, the side panels float
 over the document instead of squeezing it, the search field takes a row of its own and the document
 operations move into an overflow menu.
 
-![The editor in a narrow window](docs/images/shell-compact.png)
+![The editor in a narrow window](docs/images/shell-minimum-light.png)
+
+The three breakpoints, from the width where labels stop fitting to the width where the panels start
+floating:
+
+| Medium — 1040 | Compact — 820 |
+| --- | --- |
+| ![The editor at a medium width](docs/images/shell-medium-light.png) | ![The editor at a compact width](docs/images/shell-compact-light.png) |
+
+Every image above is produced by `tools/PdfEditor.Shots`, which boots the real application
+headlessly and captures it. Run `dotnet run --project tools/PdfEditor.Shots -- artifacts/shots` to
+regenerate them.
+
+Rotating, deleting and extracting pages happens in one dialog, and always writes a new file.
+
+![The page operations dialog](docs/images/page-operations.png)
 
 ## What it does
 
@@ -36,6 +61,13 @@ operations move into an overflow menu.
 - Continuous page view with virtualisation, a thumbnail rail, and page navigation.
 - Zoom in and out, fit width, fit page, actual size.
 - Long operations report progress and can be cancelled; the interface thread is never blocked.
+
+**Filling forms**
+- Text is placed **plain** — no background, no border — so a name, an identity number or a date
+  looks like it belongs on the page rather than stuck to it. What reaches the PDF is the glyphs.
+- An empty field is outlined with a faint dashed guide so it cannot be lost before it is typed
+  into. The guide is drawn by the editor only and is never written to the file.
+- Real bidirectional layout, so digits and Latin inside a Hebrew line keep their place.
 
 **Annotating**
 - Hebrew text boxes with real bidirectional layout, rectangles, ellipses, lines, arrows, freehand
@@ -51,11 +83,20 @@ operations move into an overflow menu.
   complete on disk.
 - **Export final copy** flattens the annotations into the page content and always writes a *new*
   file. The source is never overwritten by an export.
+- Closing the window with unsaved changes asks first. There is no path that discards work silently.
+- **Autosave and crash recovery.** Unsaved annotations are written to a sidecar every 45 seconds and
+  offered back if a run ends without shutting down. The document itself is never copied or touched,
+  and a clean exit leaves nothing behind to offer. What the sidecar holds, and for how long, is
+  spelled out in `docs/PRIVACY.md`.
 
 **Document operations**
-- Merge several documents, split, extract, delete, rotate and reorder pages.
+- Merge several documents into a new file, and split a document into one file per page.
+- Rotate, delete and extract pages by range. Every one of these writes a **new** file, so a wrong
+  range costs nothing and the open document is never modified.
 - Page ranges are written the usual way (`1-3,5,8-10`), with Hebrew error messages that name the
   part that could not be read.
+- Reordering pages is implemented and tested in the engine but is not reachable from the interface
+  yet.
 
 **OCR**
 - Fully offline Hebrew and English recognition using Tesseract with bundled language data.
@@ -71,10 +112,16 @@ operations move into an overflow menu.
   outside any application's control, and the interface says so.
 
 **Signatures**
-- Draw or import a signature image, auto-cropped with a transparent background, stored per Windows
-  user and protected with DPAPI.
-- The interface states plainly that this is a graphical signature and **not** a verified digital
+- Placing the signature tool opens the library: import a signature from a PNG or JPEG, pick one to
+  place, or delete one for good.
+- An imported image is auto-cropped, given a transparent background, and kept per Windows user
+  under DPAPI protection. "Remove white background" is on by default, because a signature scanned
+  from paper would otherwise stamp a white box onto the page.
+- Nothing is added to the page until a signature is chosen, so cancelling leaves the document
+  untouched, and the placed rectangle takes the image's proportions rather than stretching it.
+- The dialog states plainly that this is a graphical signature and **not** a verified digital
   signature.
+- Drawing a signature freehand is not implemented; the ink tool is the workaround.
 
 ## System requirements
 
@@ -115,14 +162,15 @@ build/package.sh               # portable folder + zip + SHA256SUMS.txt under ar
 build/test.sh
 ```
 
-348 tests across four projects, all passing at the current commit:
+430 tests across four projects, all passing at the current commit:
 
 | Project | Tests | Covers |
 | --- | --- | --- |
-| `PdfEditor.Core.Tests` | 155 | Page range parsing, the bidirectional algorithm, undo/redo, print sequencing, safe paths, atomic writes |
-| `PdfEditor.Pdf.Tests` | 61 | Open, render, annotate, save, reopen, flatten, merge, split, reorder, rotate — against real PDFs |
-| `PdfEditor.Ocr.Tests` | 82 | OCR geometry, Hebrew normalisation, the cache, the signature library, temporary file cleanup |
-| `PdfEditor.App.Tests` | 50 | The window itself, headless: right-to-left layout, responsive breakpoints, shortcuts, workflows |
+| `PdfEditor.Core.Tests` | 177 | Page range parsing, the bidirectional algorithm and its UAX#9 conformance, undo/redo, print sequencing, safe paths, atomic writes |
+| `PdfEditor.Pdf.Tests` | 84 | Open, render, annotate, save, reopen, flatten, merge, split, reorder, rotate, and the recovery sidecar — against real PDFs |
+| `PdfEditor.Ocr.Tests` | 82 | OCR geometry, Hebrew normalisation, the cache, the signature store, temporary file cleanup |
+| `PdfEditor.App.Tests` | 87 | The window itself, headless: right-to-left layout, responsive breakpoints, shortcuts, page operations, form filling, signatures, and both unsaved-work paths |
+
 
 Tests that must not change a source file hash it before and after and assert it is untouched.
 `docs/TESTING.md` describes the strategy, the synthetic corpus, and what is covered by a manual
@@ -163,6 +211,8 @@ important entries:
 - **Performance budgets are targets, not measurements.**
 - Annotations created by other applications are preserved exactly but are shown in the editor as a
   labelled placeholder rather than with their true appearance.
+- Page reordering has no interface yet, although it is implemented and tested underneath. A
+  signature can be imported and placed, but not drawn freehand.
 - Password-protected documents are opened read-only and reported as protected.
 - The executable is not code-signed.
 
@@ -171,6 +221,7 @@ important entries:
 | Document | What it covers |
 | --- | --- |
 | [`docs/PLAN.md`](docs/PLAN.md) | Scope, architecture, milestones, risks, acceptance criteria |
+| [`docs/PLAN_REVIEW.md`](docs/PLAN_REVIEW.md) | A critical reading of that plan, and what it failed to catch |
 | [`docs/ARCHITECTURE.md`](docs/ARCHITECTURE.md) | Module boundaries, threading, data flow |
 | [`docs/adr/`](docs/adr) | Architecture decision records, with the rejected alternatives |
 | [`docs/BUILD.md`](docs/BUILD.md) | Building, packaging, troubleshooting |

@@ -12,6 +12,11 @@
     <PackageVersion Include="Avalonia.Headless" Version="11.3.7" />
     <PackageVersion Include="Avalonia.Headless.XUnit" Version="11.3.7" />
     <PackageVersion Include="Avalonia.Controls.ItemsRepeater" Version="11.1.5" />
+    <!-- Avalonia.Desktop pulls this in transitively for Linux D-Bus integration (tray icons,
+         notifications) via Avalonia.FreeDesktop; it is never touched on the Windows target this
+         application ships for. 0.21.2 carries a High severity advisory (GHSA-xrw6-gwf8-vvr9); pinned
+         here to force the whole graph onto a patched release. -->
+    <PackageVersion Include="Tmds.DBus.Protocol" Version="0.21.3" />
     <!-- PDF -->
     <PackageVersion Include="PdfSharp" Version="6.2.4" />
     <!-- Pinned to the 4.x line: it builds against SkiaSharp 2.88, which is what Avalonia 11.3

@@ -7,6 +7,7 @@ using PdfEditor.Core.Storage;
 using PdfEditor.Ocr;
 using PdfEditor.Pdf.Documents;
 using PdfEditor.Pdf.Fonts;
+using PdfEditor.Pdf.Storage;
 using PdfEditor.Platform.Files;
 using PdfEditor.Platform.Printing;
 using PdfEditor.Platform.Signatures;
@@ -38,6 +39,7 @@ public sealed class AppServices : IDisposable
         OcrEngine = CreateOcrEngine();
         Ocr = new OcrService(OcrEngine, OcrCache);
 
+        Autosave = new FileSystemAutosaveService(paths);
         Signatures = new SignatureLibrary(paths);
         SignatureProcessor = new SignatureImageProcessor();
         Janitor = new TempFileJanitor(paths);
@@ -72,6 +74,7 @@ public sealed class AppServices : IDisposable
     public IOcrEngine OcrEngine { get; }
     public IOcrCache OcrCache { get; }
     public OcrService Ocr { get; }
+    public IAutosaveService Autosave { get; }
     public ISignatureLibrary Signatures { get; }
     public ISignatureImageProcessor SignatureProcessor { get; }
     public TempFileJanitor Janitor { get; }
@@ -94,6 +97,9 @@ public sealed class AppServices : IDisposable
 
     public void Dispose()
     {
+        // The autosave service holds only a semaphore and a dictionary, so tearing it down
+        // synchronously here is safe; the shell has already discarded any session worth keeping.
+        Autosave.DisposeAsync().AsTask().GetAwaiter().GetResult();
         Janitor.Dispose();
         OcrEngine.Dispose();
     }

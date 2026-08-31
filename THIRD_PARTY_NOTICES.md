@@ -11,6 +11,11 @@ Nothing here is modified by this project except where a NOTICE section says othe
 
 Copyright (c) 2005-2024 empira Software GmbH, Troisdorf (Cologne Area), Germany
 
+NOTICE: the upstream NuGet package also contains `PdfSharp.WPFonts.dll`, which embeds Microsoft's
+Segoe WP fonts under a separate Microsoft EULA this project has no licence to redistribute. That file
+is removed from every package this project produces (`docs/DEPENDENCIES.md` has the detail); it is
+listed here only because it is present in the dependency this project does use, not because it ships.
+
 ## PDFtoImage — MIT License
 
 Copyright (c) 2021 David Sungaila
@@ -113,7 +118,14 @@ Copyright (C) 2001-2016 Leptonica. All rights reserved.
 
 ## Assistant typeface — SIL Open Font License 1.1
 
-Copyright (c) Ben Nathan
+Copyright 2020 The Assistant Project Authors (https://github.com/hafontia/Assistant).
+Copyright 2010 The Source Sans Pro Authors (https://github.com/adobe-fonts/source-sans-pro), with
+Reserved Font Name 'Source'. Source is a trademark of Adobe Systems Incorporated in the United
+States and/or other countries.
+
+Assistant draws its Latin glyphs from Source Sans Pro, so both copyright notices apply and both must
+be retained. The Reserved Font Name means a modified version may not be distributed under a name
+containing 'Source'; this project bundles the font unmodified, so the restriction is not engaged.
 
 This Font Software is licensed under the SIL Open Font License, Version 1.1. The full licence text
 ships with the font as `fonts/OFL.txt` in the application package and is available at
