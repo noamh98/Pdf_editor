@@ -147,6 +147,12 @@ public sealed partial class MainWindow : Window
         }
     }
 
+    /// <summary>A signature was positioned but has no image; the shell offers the library.</summary>
+    private async void OnSignatureRequested(object? sender, PdfEditor.Core.Annotations.SignatureAnnotation e)
+    {
+        if (_viewModel is not null) await _viewModel.ChooseSignatureForAsync(e);
+    }
+
     private void OnAlignmentChosen(object? sender, RoutedEventArgs e)
     {
         if (sender is Control { Tag: string name }

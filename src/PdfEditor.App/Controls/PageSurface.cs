@@ -88,6 +88,13 @@ public sealed class PageSurface : Control
     /// <summary>Raised when a text annotation is created or double-clicked, so the shell can edit it.</summary>
     public event EventHandler<TextBoxAnnotation>? TextEditRequested;
 
+    /// <summary>
+    /// Raised for a signature that has been positioned but has no image yet. The annotation is
+    /// deliberately not added to the document: the shell adds it once the user has chosen, so
+    /// cancelling leaves nothing behind and placing one is a single undo step.
+    /// </summary>
+    public event EventHandler<SignatureAnnotation>? SignatureRequested;
+
     protected override Size MeasureOverride(Size availableSize) =>
         Page is null ? default : new Size(Page.DisplayWidth, Page.DisplayHeight);
 
@@ -453,6 +460,12 @@ public sealed class PageSurface : Control
         annotation.Rect = rect;
         if (annotation is not MarkAnnotation) annotation.Color = DrawColor;
         annotation.LineWidth = DrawLineWidth;
+
+        if (annotation is SignatureAnnotation signature)
+        {
+            SignatureRequested?.Invoke(this, signature);
+            return;
+        }
 
         Document!.AddAnnotation(annotation);
         if (annotation is TextBoxAnnotation text) TextEditRequested?.Invoke(this, text);

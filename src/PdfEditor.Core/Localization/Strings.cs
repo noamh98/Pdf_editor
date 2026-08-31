@@ -209,6 +209,12 @@ public static class Strings
     public const string ErrorPasswordRequired = "הקובץ מוגן בסיסמה. גרסה זו אינה תומכת בפתיחת קבצים מוצפנים.";
     public const string ErrorUnsupportedEncryption = "סוג ההצפנה של הקובץ אינו נתמך.";
     public const string ErrorUnknown = "לא ניתן היה להשלים את הפעולה.";
+    public const string ErrorUnsupportedImage =
+        "לא ניתן לקרוא את קובץ התמונה. נתמכים קובצי PNG ו־JPEG.";
+    public const string NoSignaturesYet =
+        "עדיין אין חתימות שמורות. אפשר לייבא תמונת חתימה מהמחשב.";
+    public const string RemoveWhiteBackground = "הסרת רקע לבן";
+    public const string UseSignature = "שימוש בחתימה";
     public const string ErrorDiskFull = "אין מספיק מקום פנוי בדיסק כדי לשמור את הקובץ.";
     public const string ErrorTargetReadOnly = "לא ניתן לכתוב לקובץ היעד. ייתכן שהוא מסומן לקריאה בלבד או פתוח בתוכנה אחרת.";
     public const string OperationCancelled = "הפעולה בוטלה";

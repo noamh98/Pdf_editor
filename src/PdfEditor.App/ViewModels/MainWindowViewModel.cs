@@ -38,6 +38,8 @@ public sealed class MainWindowViewModel : ViewModelBase
     private string? _searchText;
     private PrintPreviewViewModel? _printPreview;
     private PageOperationsViewModel? _pageOperations;
+    private SignaturePickerViewModel? _signaturePicker;
+    private SignatureAnnotation? _pendingSignature;
     private double _viewportWidth = 1280;
     private LayoutSize _layoutSize = LayoutSize.Wide;
     private bool _thumbnailsOpen = true;
@@ -86,6 +88,8 @@ public sealed class MainWindowViewModel : ViewModelBase
             () => Document is not null);
         ClearSearchCommand = new RelayCommand(() => SearchText = null);
         ShowPageOperationsCommand = new RelayCommand(ShowPageOperations, () => Document is not null);
+        ConfirmSignatureCommand = Async(ConfirmSignatureAsync, () => SignaturePicker?.CanConfirm == true);
+        CancelSignatureCommand = new RelayCommand(CancelSignature);
         ClosePageOperationsCommand = new RelayCommand(() => PageOperations = null);
         ApplyPageOperationCommand = Async(ApplyPageOperationAsync,
             () => PageOperations?.CanApply == true);
@@ -132,6 +136,8 @@ public sealed class MainWindowViewModel : ViewModelBase
     public RelayCommand ToggleThumbnailsCommand { get; }
     public RelayCommand ClearSearchCommand { get; }
     public RelayCommand ShowPageOperationsCommand { get; }
+    public AsyncRelayCommand ConfirmSignatureCommand { get; }
+    public RelayCommand CancelSignatureCommand { get; }
     public RelayCommand ClosePageOperationsCommand { get; }
     public AsyncRelayCommand ApplyPageOperationCommand { get; }
     public RelayCommand ClosePrintPreviewCommand { get; }
@@ -187,6 +193,18 @@ public sealed class MainWindowViewModel : ViewModelBase
     }
 
     public bool IsPageOperationsOpen => _pageOperations is not null;
+
+    public SignaturePickerViewModel? SignaturePicker
+    {
+        get => _signaturePicker;
+        private set
+        {
+            if (SetProperty(ref _signaturePicker, value))
+                RaisePropertyChanged(nameof(IsSignaturePickerOpen));
+        }
+    }
+
+    public bool IsSignaturePickerOpen => _signaturePicker is not null;
 
     public bool HasDocument => _document is not null;
 
@@ -864,6 +882,66 @@ public sealed class MainWindowViewModel : ViewModelBase
         ToggleThumbnailsCommand.RaiseCanExecuteChanged();
         ShowPageOperationsCommand.RaiseCanExecuteChanged();
         RaiseAll(nameof(WindowTitle));
+    }
+
+    // ---- signatures ----------------------------------------------------------------------------
+
+    /// <summary>
+    /// Opens the library for a signature annotation that has just been placed and has no image yet.
+    /// </summary>
+    public async Task ChooseSignatureForAsync(SignatureAnnotation annotation)
+    {
+        ArgumentNullException.ThrowIfNull(annotation);
+        _pendingSignature = annotation;
+
+        var picker = new SignaturePickerViewModel(
+            _services.Signatures, _services.SignatureProcessor, Dialogs);
+        picker.PropertyChanged += (_, e) =>
+        {
+            if (e.PropertyName is nameof(SignaturePickerViewModel.CanConfirm))
+                ConfirmSignatureCommand.RaiseCanExecuteChanged();
+        };
+        SignaturePicker = picker;
+        await picker.LoadAsync().ConfigureAwait(true);
+        ConfirmSignatureCommand.RaiseCanExecuteChanged();
+    }
+
+    /// <summary>
+    /// Puts the chosen image on the waiting annotation and reshapes it to the image's proportions,
+    /// so a signature is never stretched by whatever rectangle happened to be drawn. Only now is
+    /// the annotation added, which makes placing a signature a single undo step.
+    /// </summary>
+    public async Task ConfirmSignatureAsync()
+    {
+        if (SignaturePicker is not { Selected: { } chosen } picker) return;
+        if (_pendingSignature is not { } annotation) { CloseSignaturePicker(); return; }
+
+        var bytes = await picker.ResolveSelectedImageAsync().ConfigureAwait(true);
+        if (bytes is not { Length: > 0 }) { CloseSignaturePicker(); return; }
+
+        annotation.SignatureId = chosen.Entry.Id;
+        annotation.ImagePng = bytes;
+
+        var rect = annotation.Rect;
+        annotation.Rect = new PdfRect(rect.X, rect.Y, rect.Width,
+            rect.Width / Math.Max(0.01, chosen.Entry.AspectRatio));
+        annotation.Touch();
+
+        _document?.AddAnnotation(annotation);
+        CloseSignaturePicker();
+    }
+
+    /// <summary>
+    /// Closing without choosing leaves the page as it was. The annotation was never added, so
+    /// there is nothing to take back — a signature with no image is invisible, and one left behind
+    /// would be litter the user cannot see to remove.
+    /// </summary>
+    public void CancelSignature() => CloseSignaturePicker();
+
+    private void CloseSignaturePicker()
+    {
+        _pendingSignature = null;
+        SignaturePicker = null;
     }
 
     // ---- autosave and crash recovery ----------------------------------------------------------

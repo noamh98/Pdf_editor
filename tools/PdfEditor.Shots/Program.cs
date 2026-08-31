@@ -13,6 +13,7 @@ using PdfEditor.Pdf.Fonts;
 using PdfSharp;
 using PdfSharp.Drawing;
 using PdfSharp.Pdf;
+using SkiaSharp;
 
 namespace PdfEditor.Shots;
 
@@ -22,7 +23,8 @@ namespace PdfEditor.Shots;
 /// </summary>
 internal static class Program
 {
-    private sealed record Shot(string Name, int Width, int Height, ThemeVariant Theme, bool WithDocument);
+    private sealed record Shot(string Name, int Width, int Height, ThemeVariant Theme, bool WithDocument,
+        bool ShowSignatures = false);
 
     private static void Main(string[] args)
     {
@@ -37,6 +39,7 @@ internal static class Program
         var root = Path.Combine(Path.GetTempPath(), "pdfeditor-shots-" + Guid.NewGuid().ToString("N"));
         var services = AppServices.CreateForRoot(root);
         var fixture = WriteFixture(root);
+        SeedSignature(services);
 
         Shot[] shots =
         [
@@ -48,7 +51,9 @@ internal static class Program
             new("shell-compact-dark",  820, 740, ThemeVariant.Dark,  true),
             new("shell-minimum-light", 680, 700, ThemeVariant.Light, true),
             new("start-light",        1360, 860, ThemeVariant.Light, false),
-            new("start-dark",         1360, 860, ThemeVariant.Dark,  false)
+            new("start-dark",         1360, 860, ThemeVariant.Dark,  false),
+            new("signatures-light",   1360, 860, ThemeVariant.Light, true, ShowSignatures: true),
+            new("signatures-dark",    1360, 860, ThemeVariant.Dark,  true, ShowSignatures: true)
         ];
 
         foreach (var shot in shots)
@@ -109,6 +114,16 @@ internal static class Program
             Drain();
         }
 
+        if (shot.ShowSignatures)
+        {
+            Await(viewModel.ChooseSignatureForAsync(new SignatureAnnotation
+            {
+                PageIndex = 0,
+                Rect = new PdfRect(200, 480, 160, 50)
+            }));
+            Drain();
+        }
+
         window.Width = shot.Width;
         window.Height = shot.Height;
         Drain();
@@ -142,6 +157,33 @@ internal static class Program
             Thread.Sleep(20);
         }
         Dispatcher.UIThread.RunJobs();
+    }
+
+    /// <summary>A stand-in signature, so the library shot shows the picker doing its job.</summary>
+    private static void SeedSignature(AppServices services)
+    {
+        using var bitmap = new SKBitmap(360, 120);
+        using (var canvas = new SKCanvas(bitmap))
+        {
+            canvas.Clear(SKColors.Transparent);
+            using var pen = new SKPaint
+            {
+                Color = new SKColor(20, 30, 60),
+                IsAntialias = true,
+                Style = SKPaintStyle.Stroke,
+                StrokeWidth = 5,
+                StrokeCap = SKStrokeCap.Round
+            };
+            using var path = new SKPath();
+            path.MoveTo(24, 88);
+            path.CubicTo(70, 18, 104, 116, 148, 52);
+            path.CubicTo(180, 8, 196, 104, 232, 66);
+            path.CubicTo(258, 40, 286, 92, 336, 44);
+            canvas.DrawPath(path, pen);
+        }
+        using var image = SKImage.FromBitmap(bitmap);
+        using var data = image.Encode(SKEncodedImageFormat.Png, 100);
+        services.Signatures.AddAsync("חתימה לדוגמה", data.ToArray()).GetAwaiter().GetResult();
     }
 
     private static string WriteFixture(string directory)
