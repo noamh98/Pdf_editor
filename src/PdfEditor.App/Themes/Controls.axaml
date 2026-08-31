@@ -211,6 +211,52 @@
     <Setter Property="Background" Value="{DynamicResource DangerSoftBrush}" />
   </Style>
 
+  <!--
+    A segmented choice: three buttons that read as one control with one of them selected. Used for
+    text alignment, where the options are mutually exclusive and worth seeing all at once rather
+    than hiding two of them behind a dropdown.
+  -->
+  <Style Selector="RadioButton.segment">
+    <Setter Property="Background" Value="Transparent" />
+    <Setter Property="BorderBrush" Value="{DynamicResource BorderStrongBrush}" />
+    <Setter Property="BorderThickness" Value="1" />
+    <Setter Property="CornerRadius" Value="{DynamicResource RadiusSmall}" />
+    <Setter Property="Padding" Value="12,6" />
+    <Setter Property="MinHeight" Value="{DynamicResource HitTargetMin}" />
+    <Setter Property="MinWidth" Value="58" />
+    <Setter Property="HorizontalContentAlignment" Value="Center" />
+    <Setter Property="Foreground" Value="{DynamicResource TextBrush}" />
+    <Setter Property="Template">
+      <ControlTemplate>
+        <Border Name="PART_Border"
+                Background="{TemplateBinding Background}"
+                BorderBrush="{TemplateBinding BorderBrush}"
+                BorderThickness="{TemplateBinding BorderThickness}"
+                CornerRadius="{TemplateBinding CornerRadius}">
+          <ContentPresenter Name="PART_ContentPresenter"
+                            Content="{TemplateBinding Content}"
+                            Padding="{TemplateBinding Padding}"
+                            HorizontalContentAlignment="Center"
+                            VerticalContentAlignment="Center" />
+        </Border>
+      </ControlTemplate>
+    </Setter>
+  </Style>
+
+  <Style Selector="RadioButton.segment:pointerover /template/ Border#PART_Border">
+    <Setter Property="Background" Value="{DynamicResource HoverBrush}" />
+  </Style>
+
+  <Style Selector="RadioButton.segment:checked /template/ Border#PART_Border">
+    <Setter Property="Background" Value="{DynamicResource AccentSoftBrush}" />
+    <Setter Property="BorderBrush" Value="{DynamicResource AccentBrush}" />
+  </Style>
+
+  <Style Selector="RadioButton.segment:checked">
+    <Setter Property="Foreground" Value="{DynamicResource AccentBrush}" />
+    <Setter Property="FontWeight" Value="SemiBold" />
+  </Style>
+
   <!-- Tool strip: a single rounded group so the drawing tools read as one instrument. -->
   <Style Selector="Border.toolstrip">
     <Setter Property="Background" Value="{DynamicResource PanelAltBrush}" />

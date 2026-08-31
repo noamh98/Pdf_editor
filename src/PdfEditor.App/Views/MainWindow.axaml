@@ -103,7 +103,7 @@
 
               <Border Classes="group">
                 <StackPanel Spacing="4">
-                  <TextBlock Classes="sectionHeader" Text="צבע" />
+                  <TextBlock Classes="sectionHeader" Text="{x:Static loc:Strings.ColorLabel}" />
                   <ItemsControl ItemsSource="{x:Static vm:PropertiesViewModel.Swatches}">
                     <ItemsControl.ItemsPanel>
                       <ItemsPanelTemplate>
@@ -125,18 +125,21 @@
                 </StackPanel>
               </Border>
 
+              <Border Classes="group" IsVisible="{Binding SupportsLineWidth}">
+                <StackPanel Spacing="2">
+                  <TextBlock Classes="sectionHeader" Text="{x:Static loc:Strings.LineWidthLabel}" />
+                  <Slider Minimum="0.5" Maximum="16" TickFrequency="0.5" IsSnapToTickEnabled="True"
+                          Value="{Binding LineWidth, Mode=TwoWay}"
+                          AutomationProperties.Name="{x:Static loc:Strings.LineWidthLabel}" />
+                </StackPanel>
+              </Border>
+
               <Border Classes="group">
                 <StackPanel Spacing="2">
-                  <TextBlock Classes="sectionHeader" Text="עובי קו" IsVisible="{Binding SupportsLineWidth}" />
-                  <Slider Minimum="0.5" Maximum="16" TickFrequency="0.5" IsSnapToTickEnabled="True"
-                          IsVisible="{Binding SupportsLineWidth}"
-                          Value="{Binding LineWidth, Mode=TwoWay}"
-                          AutomationProperties.Name="עובי קו" />
-
-                  <TextBlock Classes="sectionHeader" Text="שקיפות" />
+                  <TextBlock Classes="sectionHeader" Text="{x:Static loc:Strings.OpacityLabel}" />
                   <Slider Minimum="0.1" Maximum="1.0" TickFrequency="0.05" IsSnapToTickEnabled="True"
                           Value="{Binding Opacity, Mode=TwoWay}"
-                          AutomationProperties.Name="שקיפות" />
+                          AutomationProperties.Name="{x:Static loc:Strings.OpacityLabel}" />
                 </StackPanel>
               </Border>
 
@@ -146,10 +149,44 @@
                   <TextBox AcceptsReturn="True" MinHeight="88" TextWrapping="Wrap"
                            Text="{Binding Text, Mode=TwoWay}"
                            AutomationProperties.Name="{x:Static loc:Strings.ToolTextBox}" />
-                  <TextBlock Classes="sectionHeader" Margin="0,6,0,0" Text="גודל גופן" />
+
+                  <Grid ColumnDefinitions="*,Auto" Margin="0,6,0,0">
+                    <TextBlock Grid.Column="0" Classes="sectionHeader" Margin="0"
+                               Text="{x:Static loc:Strings.FontSizeLabel}" />
+                    <!-- The number matters: a form is usually matched to a size, not eyeballed. -->
+                    <TextBlock Grid.Column="1" Classes="muted ltr" Margin="0"
+                               Text="{Binding FontSizeText}" />
+                  </Grid>
                   <Slider Minimum="8" Maximum="48" TickFrequency="1" IsSnapToTickEnabled="True"
                           Value="{Binding FontSize, Mode=TwoWay}"
-                          AutomationProperties.Name="גודל גופן" />
+                          AutomationProperties.Name="{x:Static loc:Strings.FontSizeLabel}" />
+
+                  <CheckBox IsChecked="{Binding Bold, Mode=TwoWay}"
+                            Content="{x:Static loc:Strings.BoldLabel}"
+                            AutomationProperties.Name="{x:Static loc:Strings.BoldLabel}" />
+
+                  <TextBlock Classes="sectionHeader" Margin="0,2,0,0"
+                             Text="{x:Static loc:Strings.AlignmentLabel}" />
+                  <!-- Named by where the line starts rather than by a side, because the annotation
+                       follows its own text direction: start is the right in Hebrew and the left in
+                       a Latin run. -->
+                  <StackPanel Orientation="Horizontal" Spacing="6">
+                    <RadioButton Classes="segment" GroupName="align" Click="OnAlignmentChosen" Tag="Start"
+                                 IsChecked="{Binding IsAlignStart, Mode=OneWay}"
+                                 Content="{x:Static loc:Strings.AlignStart}"
+                                 ToolTip.Tip="{x:Static loc:Strings.AlignStartHint}"
+                                 AutomationProperties.Name="{x:Static loc:Strings.AlignStartHint}" />
+                    <RadioButton Classes="segment" GroupName="align" Click="OnAlignmentChosen" Tag="Center"
+                                 IsChecked="{Binding IsAlignCenter, Mode=OneWay}"
+                                 Content="{x:Static loc:Strings.AlignCenter}"
+                                 ToolTip.Tip="{x:Static loc:Strings.AlignCenterHint}"
+                                 AutomationProperties.Name="{x:Static loc:Strings.AlignCenterHint}" />
+                    <RadioButton Classes="segment" GroupName="align" Click="OnAlignmentChosen" Tag="End"
+                                 IsChecked="{Binding IsAlignEnd, Mode=OneWay}"
+                                 Content="{x:Static loc:Strings.AlignEnd}"
+                                 ToolTip.Tip="{x:Static loc:Strings.AlignEndHint}"
+                                 AutomationProperties.Name="{x:Static loc:Strings.AlignEndHint}" />
+                  </StackPanel>
                 </StackPanel>
               </Border>
 

@@ -98,6 +98,25 @@ public static class Strings
     public const string DontSave = "אל תשמור";
 
     // ---- recovery ---------------------------------------------------------------------------
+    // ---- the properties panel ----------------------------------------------------------------
+    public const string ColorLabel = "צבע";
+    public const string LineWidthLabel = "עובי קו";
+    public const string OpacityLabel = "שקיפות";
+    public const string FontSizeLabel = "גודל גופן";
+    public const string BoldLabel = "מודגש";
+    public const string AlignmentLabel = "יישור";
+
+    /// <summary>
+    /// Alignment is named by where the line starts, not by a side of the page: in Hebrew the start
+    /// is the right, in a Latin run it is the left, and the annotation follows its own text.
+    /// </summary>
+    public const string AlignStart = "התחלה";
+    public const string AlignCenter = "מרכז";
+    public const string AlignEnd = "סוף";
+    public const string AlignStartHint = "יישור לתחילת השורה — בעברית זהו הצד הימני";
+    public const string AlignCenterHint = "יישור למרכז";
+    public const string AlignEndHint = "יישור לסוף השורה — בעברית זהו הצד השמאלי";
+
     public const string RecoveryTitle = "נמצאה עבודה שלא נשמרה";
     public const string RecoveryBody =
         "בהפעלה הקודמת נותרו שינויים שלא נשמרו. אפשר לשחזר אותם עכשיו או למחוק אותם.";

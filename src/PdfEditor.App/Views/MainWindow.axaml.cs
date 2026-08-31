@@ -147,6 +147,15 @@ public sealed partial class MainWindow : Window
         }
     }
 
+    private void OnAlignmentChosen(object? sender, RoutedEventArgs e)
+    {
+        if (sender is Control { Tag: string name }
+            && Enum.TryParse<PdfEditor.Core.Annotations.TextAlignment>(name, out var alignment))
+        {
+            _viewModel?.Properties?.ApplyAlignment(alignment);
+        }
+    }
+
     private void OnSwatchClicked(object? sender, RoutedEventArgs e)
     {
         if (sender is Control { Tag: ColorSwatch swatch }) _viewModel?.Properties?.ApplyColor(swatch.Color);
