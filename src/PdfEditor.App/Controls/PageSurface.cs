@@ -265,7 +265,11 @@ public sealed class PageSurface : Control
     private void DrawSelection(DrawingContext context, Annotation annotation)
     {
         var rect = ToScreen(annotation.Rect);
-        var accent = this.FindResource("AccentColor") is AvaloniaColor color
+        // PageAccentColor, not the chrome accent: this is drawn on the page, which is white paper
+        // in both themes. The dark theme's accent is picked to carry against a dark panel and
+        // measures 2.16:1 against paper, so selection would all but vanish on the very surface it
+        // is meant to mark.
+        var accent = this.FindResource("PageAccentColor") is AvaloniaColor color
             ? color
             : AvaloniaColor.FromRgb(31, 78, 140);
 

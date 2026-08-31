@@ -248,12 +248,17 @@
                   AutomationProperties.Name="{x:Static loc:Strings.SaveAs}">
             <Path Data="{x:Static vm:Icons.SaveAs}" Fill="{Binding $parent[Button].Foreground}" />
           </Button>
+          <!-- Export and print step aside at the narrowest width along with the document
+               operations. Both keep their shortcuts and both are in the overflow menu, so nothing
+               becomes unreachable — but at 680 the bar cannot hold them without clipping. -->
           <Button Classes="command" Command="{Binding ExportCommand}"
+                  IsVisible="{Binding ShowDocumentOpsInline}"
                   ToolTip.Tip="{x:Static loc:Strings.ExportFinalCopy}"
                   AutomationProperties.Name="{x:Static loc:Strings.ExportFinalCopy}">
             <Path Data="{x:Static vm:Icons.Export}" Fill="{Binding $parent[Button].Foreground}" />
           </Button>
           <Button Classes="command" Command="{Binding PrintCommand}"
+                  IsVisible="{Binding ShowDocumentOpsInline}"
                   ToolTip.Tip="Ctrl+P" AutomationProperties.Name="{x:Static loc:Strings.Print}">
             <Path Data="{x:Static vm:Icons.Print}" Fill="{Binding $parent[Button].Foreground}" />
           </Button>
@@ -302,6 +307,9 @@
             <Path Data="{x:Static vm:Icons.More}" Fill="{Binding $parent[Button].Foreground}" />
             <Button.Flyout>
               <MenuFlyout>
+                <MenuItem Header="{x:Static loc:Strings.Print}" Command="{Binding PrintCommand}" />
+                <MenuItem Header="{x:Static loc:Strings.ExportFinalCopy}" Command="{Binding ExportCommand}" />
+                <Separator />
                 <MenuItem Header="{x:Static loc:Strings.Merge}" Command="{Binding MergeCommand}" />
                 <MenuItem Header="{x:Static loc:Strings.Split}" Command="{Binding SplitCommand}" />
                 <MenuItem Header="{x:Static loc:Strings.PageOperations}" Command="{Binding ShowPageOperationsCommand}" />

@@ -12,9 +12,25 @@
     <Setter Property="TextElement.Foreground" Value="{DynamicResource TextBrush}" />
   </Style>
 
+  <!--
+    No Foreground setter here. An implicit setter would beat inheritance, and a label inside a
+    button that recolours its content — the accent Open button, a danger action — would keep the
+    body colour while the icon beside it followed the button. The Window seeds TextElement.
+    Foreground, so an unclassed TextBlock still lands on the body colour.
+  -->
   <Style Selector="TextBlock">
-    <Setter Property="Foreground" Value="{DynamicResource TextBrush}" />
     <Setter Property="TextWrapping" Value="Wrap" />
+  </Style>
+
+  <!--
+    Icons are drawn on a twenty unit grid but each geometry ends where its own strokes end, so an
+    unsized Path measures to its own bounds: the check mark came out visibly smaller than the cross
+    beside it. A fixed box with no stretch puts every icon back on the grid it was drawn for.
+  -->
+  <Style Selector="Path">
+    <Setter Property="Width" Value="20" />
+    <Setter Property="Height" Value="20" />
+    <Setter Property="Stretch" Value="None" />
   </Style>
 
   <Style Selector="TextBlock.muted">
@@ -79,9 +95,15 @@
     <Setter Property="BoxShadow" Value="{DynamicResource CardShadow}" />
   </Style>
 
-  <!-- A quiet grouping surface used inside the side panels. -->
+  <!--
+    A quiet grouping surface used inside the side panels. The fill alone is 1.13:1 against the
+    panel behind it in both themes, which is under the threshold where an edge reads at all, so the
+    grouping is carried by a hairline and the fill only reinforces it.
+  -->
   <Style Selector="Border.group">
     <Setter Property="Background" Value="{DynamicResource PanelAltBrush}" />
+    <Setter Property="BorderBrush" Value="{DynamicResource BorderBrush}" />
+    <Setter Property="BorderThickness" Value="1" />
     <Setter Property="CornerRadius" Value="{DynamicResource RadiusMedium}" />
     <Setter Property="Padding" Value="12" />
   </Style>
@@ -454,15 +476,18 @@
     <Setter Property="Margin" Value="0,0,0,24" />
   </Style>
 
-  <!-- Small status pills in the status bar -->
+  <!-- Small status pills in the status bar; the hairline is what gives them a shape in dark. -->
   <Style Selector="Border.pill">
     <Setter Property="Background" Value="{DynamicResource PanelAltBrush}" />
+    <Setter Property="BorderBrush" Value="{DynamicResource BorderBrush}" />
+    <Setter Property="BorderThickness" Value="1" />
     <Setter Property="CornerRadius" Value="{DynamicResource RadiusPill}" />
     <Setter Property="Padding" Value="10,3" />
   </Style>
 
   <Style Selector="Border.pill.dirty">
     <Setter Property="Background" Value="{DynamicResource WarningBrush}" />
+    <Setter Property="BorderBrush" Value="{DynamicResource WarningBrush}" />
   </Style>
 
   <Style Selector="Border.pill.dirty TextBlock">

@@ -53,9 +53,13 @@ internal static class AnnotationOverlay
     private static Pen Stroke(AnnotationColor c, double width) =>
         new(Brush(c), Math.Max(0.5, width)) { LineCap = PenLineCap.Round, LineJoin = PenLineJoin.Round };
 
-    /// <summary>Editor-only hint marking an empty text field. Never written to the PDF.</summary>
+    /// <summary>
+    /// Editor-only hint marking an empty text field. Never written to the PDF, and deliberately a
+    /// fixed colour rather than a theme one: it is drawn on the page, which is white paper in both
+    /// themes, so a chrome colour picked against a dark panel would be the wrong one here.
+    /// </summary>
     private static Pen EmptyFieldGuide(double scale) =>
-        new(new SolidColorBrush(AvaloniaColor.FromArgb(110, 122, 132, 148)), Math.Max(1, scale))
+        new(new SolidColorBrush(AvaloniaColor.FromArgb(150, 122, 132, 148)), Math.Max(1, scale))
         {
             DashStyle = new DashStyle([4, 3], 0)
         };
