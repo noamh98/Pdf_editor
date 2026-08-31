@@ -1,6 +1,6 @@
 # Handoff — where the project stands
 
-Last updated at the end of the third working session. This file is the truthful state of the
+Last updated at the end of the fourth working session. This file is the truthful state of the
 project, so work can resume without re-discovering anything.
 
 ## Current status
@@ -46,6 +46,46 @@ a border. The product's main job is filling forms in — a name, an identity num
 is now created plain and an empty field gets a dashed guide that exists only on screen. The colour
 swatch also did nothing visible for text, because it set a stroke colour a text box never uses; for
 a text box it is now the ink of the glyphs.
+
+## What the fourth session changed
+
+A second, independently-run design review pass found four defects the first pass had not looked
+for, verified each against the running code, and all four are fixed as of this commit —
+`docs/PLAN_REVIEW.md`'s "Second review pass" section has the full evidence for each.
+
+**A re-render after a page had already finished crashed.** `PageViewModel.EnsureRenderedAsync`
+published its cancellation source into a field and disposed it unconditionally on the way out
+without clearing the field, so the next call that did not short-circuit on `IsSharp` — any zoom
+change — found a disposed source and threw calling `.Cancel()` on it. Fixed with a
+`CompareExchange` that only disposes the source if it is still the current one.
+
+**The package redistributed Microsoft's fonts it had no licence for.** The PDFsharp NuGet package's
+`lib/` folder ships `PdfSharp.WPFonts.dll`, which embeds six Segoe WP font files under a Microsoft
+EULA. It shipped in every build until an independent review read the file's own embedded strings.
+`build/package.sh` and `build/package.ps1` now delete it and refuse to package if it reappears —
+proven safe to remove alone (its six sibling assemblies in the same package are not: PdfSharp.dll
+calls into several of them internally at runtime) by deleting each in turn from a built test output
+and running the whole suite.
+
+**An annotation's opacity could be applied twice.** The appearance stream already bakes the
+configured opacity into every colour, and the annotation dictionary's `/CA` on top of it would tell
+a fully compliant viewer to composite the same, already-dimmed appearance a second time. `/CA` is no
+longer written. This could not be shown as a visible difference through this project's own renderer
+— PDFium's basic annotation flag does not implement `/CA` compositing at all — so it rests on the
+specification, verified by a test that the key is absent, not by a passing pixel comparison.
+
+**The dependency audit was failing on every PR.** `Avalonia.Desktop` pulls in `Tmds.DBus.Protocol`
+0.21.2 transitively for Linux D-Bus integration, which is never touched on the Windows build this
+project ships, but carries a High severity advisory. Pinned centrally to 0.21.3.
+
+The Visual C++ redistributable question in the third session's outstanding list is also settled now,
+though not fixed: reading the PE import tables of every native DLL in a built package shows
+`pdfium.dll`, `libSkiaSharp.dll` and `libHarfBuzzSharp.dll` need nothing beyond the OS, while
+`tesseract50.dll` and `leptonica-1.82.0.dll` import `MSVCP140.dll`, `VCRUNTIME140.dll` and (tesseract
+only) `VCRUNTIME140_1.dll`, none of which ship in the package. OCR specifically would fail on a
+Windows machine that has never installed that runtime. `docs/RELEASE.md` carries this as a release
+blocker with two concrete remediation paths; neither was attempted here for lack of a Windows
+machine to source or verify the fix on.
 
 ## Verified at this commit
 
@@ -93,8 +133,9 @@ a cache. `Platform` holds the Windows-only pieces: printing and DPAPI-protected 
    under exclusive copyright, which the README states.
 2. **A Windows smoke test** — nobody has double-clicked the executable. `docs/TESTING.md` has the
    manual script to run first.
-3. **The Visual C++ redistributable question** — whether PDFium, Skia and Tesseract need it on a
-   bare Windows install is unverified and must be settled before any release.
+3. **The Visual C++ redistributable is missing for OCR specifically.** Settled, not fixed: PE import
+   tables show `tesseract50.dll` and `leptonica-1.82.0.dll` need `MSVCP140.dll`, `VCRUNTIME140.dll`
+   and `VCRUNTIME140_1.dll`, none of which ship. `docs/RELEASE.md` has the two remediation paths.
 4. **A physical print test** — the forced-duplex sequence has never reached a printer.
 5. **No interface for reordering pages** — it is implemented and tested underneath and is not
    reachable from the window. The signature library now is: placing the tool opens it, and a
@@ -148,6 +189,20 @@ dotnet run --project tools/PdfEditor.Shots -- artifacts/shots   # regenerate doc
   Isolate characters were not enough; the view pins such readouts to `LeftToRight`.
 - **`System.Threading.Lock` is .NET 9.** This targets .NET 8; use `object`.
 - **xUnit here is v2.** `TestContext.Current.CancellationToken` is a v3 API.
+- **A `using` on a published cancellation source disposes it whether or not it is still current.**
+  `PageViewModel.EnsureRenderedAsync` learned this the hard way: publish the source into a field,
+  and only dispose it in a `finally` that first confirms via `CompareExchange` that a later call has
+  not already superseded and disposed it.
+- **A NuGet package's `lib/` folder can ship more than the one assembly your code references.**
+  PDFsharp bundles seven companion assemblies nothing in this codebase imports, and one of them
+  (`PdfSharp.WPFonts.dll`) has no licence to redistribute. A source-level grep for unused namespaces
+  is not proof a file is safe to delete — several of PDFsharp's own companions are called internally
+  at runtime. Verify by deleting the specific file from a built test output and running the suite,
+  not by reasoning about what the source code imports.
+- **Baking opacity into a drawn colour and also setting `/CA` double-applies it.** `AnnotationRenderer`
+  does the former; `AnnotationWriter` must not also do the latter. PDFium's own basic annotation
+  rendering does not implement `/CA` at all, so this class of bug is invisible in this project's own
+  previews and has to be checked against the specification, not against a screenshot.
 
 ## Known gaps and risks carried forward
 
