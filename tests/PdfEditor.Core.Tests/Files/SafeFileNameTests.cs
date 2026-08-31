@@ -137,39 +137,46 @@ public class SafeFileNameMakeUniqueTests
     [Fact]
     public void ReturnsDesiredPathWhenNothingExists()
     {
-        var result = SafeFileName.MakeUnique("/dir/report.pdf", _ => false);
-        Assert.Equal("/dir/report.pdf", result);
+        var path = Path.Combine("dir", "report.pdf");
+        Assert.Equal(path, SafeFileName.MakeUnique(path, _ => false));
     }
 
+    // Paths here are built with Path.Combine rather than written as "/dir/report.pdf". On Windows
+    // Path.GetDirectoryName turns a leading "/" into "\\" while Path.Combine leaves it alone, so a
+    // literal made the expected and the actual value differ in their very first character — which
+    // is what these three did until CI ran them on Windows for the first time.
     [Fact]
     public void AppendsTwoWhenDesiredPathExists()
     {
-        var existing = new HashSet<string> { "/dir/report.pdf" };
-        var result = SafeFileName.MakeUnique("/dir/report.pdf", existing.Contains);
+        var path = Path.Combine("dir", "report.pdf");
+        var existing = new HashSet<string> { path };
+        var result = SafeFileName.MakeUnique(path, existing.Contains);
 
-        Assert.Equal(Path.Combine("/dir", "report (2).pdf"), result);
+        Assert.Equal(Path.Combine("dir", "report (2).pdf"), result);
     }
 
     [Fact]
     public void KeepsIncrementingUntilAFreeNameIsFound()
     {
+        var path = Path.Combine("dir", "report.pdf");
         var existing = new HashSet<string>
         {
-            "/dir/report.pdf",
-            Path.Combine("/dir", "report (2).pdf"),
+            path,
+            Path.Combine("dir", "report (2).pdf"),
         };
-        var result = SafeFileName.MakeUnique("/dir/report.pdf", existing.Contains);
+        var result = SafeFileName.MakeUnique(path, existing.Contains);
 
-        Assert.Equal(Path.Combine("/dir", "report (3).pdf"), result);
+        Assert.Equal(Path.Combine("dir", "report (3).pdf"), result);
     }
 
     [Fact]
     public void WorksForPathsWithoutAnExtension()
     {
-        var existing = new HashSet<string> { "/dir/report" };
-        var result = SafeFileName.MakeUnique("/dir/report", existing.Contains);
+        var path = Path.Combine("dir", "report");
+        var existing = new HashSet<string> { path };
+        var result = SafeFileName.MakeUnique(path, existing.Contains);
 
-        Assert.Equal(Path.Combine("/dir", "report (2)"), result);
+        Assert.Equal(Path.Combine("dir", "report (2)"), result);
     }
 
     [Fact]

@@ -8,7 +8,7 @@ These are the honest gaps in verification, not features that are known broken.
 
 | # | What | Why it is not verified |
 | --- | --- | --- |
-| V1 | The application has never been run on Windows | It was developed and tested on Linux. The whole solution builds, all 364 tests pass, and the Windows package is produced by cross-publishing, but no one has double-clicked the executable |
+| V1 | Nobody has launched the application on Windows | Development happens on Linux, but this is narrower than it was previously written. CI has a Windows job that builds the solution, runs the whole test suite on Windows and packages it — and as of this branch that job passes, so the suite is green on the target platform. What has never happened is a person double-clicking `PdfEditor.exe` and using it: no window has been drawn on Windows, no file picker opened, no printer reached. `docs/TESTING.md` has the manual script |
 | V2 | The printing workflow has never reached a physical printer | Needs Windows and hardware. The sequencing logic is unit tested and the preview comes from the same code that builds the job. `docs/PRINTING.md` carries the protocol |
 | V3 | OCR recognition is not covered by automated tests | The Tesseract NuGet package ships Windows-only natives. Accuracy was measured manually with the Tesseract CLI — see `docs/OCR.md` |
 | V4 | DPAPI signature protection is not exercised on Linux | Windows-only API. The library is tested with protection reported as unavailable |

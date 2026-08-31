@@ -1,0 +1,10 @@
+# The .editorconfig asks for LF. Without this, a Windows checkout converts to CRLF and
+# `dotnet format --verify-no-changes` rejects every line of every file it looks at.
+* text=auto eol=lf
+
+# Binary assets must never be line-ending converted.
+*.png binary
+*.ico binary
+*.ttf binary
+*.pdf binary
+*.traineddata binary
